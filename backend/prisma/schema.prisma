@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+  name             String?
+  password         String
+  role             Role      @default(USER)
+  refreshToken     String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  posts            Post[]
+  pages            Page[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  posts     Post[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  posts     Post[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Post {
+  id              Int        @id @default(autoincrement())
+  title           String
+  slug            String     @unique
+  content         String     @db.Text
+  thumbnail       String?
+  gallery         String[]
+  metaTitle       String?
+  metaDescription String?
+  status          PostStatus @default(DRAFT)
+  featured        Boolean    @default(false)
+
+  authorId Int
+  author   User @relation(fields: [authorId], references: [id])
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  tags Tag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum BillboardStatus {
+  AVAILABLE
+  BOOKED
+  OCCUPIED
+  MAINTENANCE
+  INACTIVE
+}
+
+model Billboard {
+  id             Int             @id @default(autoincrement())
+  code           String          @unique
+  name           String
+  slug           String          @unique
+  province       String
+  city           String
+  district       String
+  address        String          @db.Text
+  latitude       Float
+  longitude      Float
+  googleMapsUrl  String?         @db.Text
+  size           String
+  type           String
+  orientation    String
+  lighting       String
+  traffic        String?
+  price          Float
+  status         BillboardStatus @default(AVAILABLE)
+  description    String?         @db.Text
+  thumbnail      String?
+  gallery        String[]
+  metaTitle       String?
+  metaDescription String?  @db.Text
+  metaKeywords    String?
+  ogImage         String?
+  availableFrom  DateTime?
+  availableUntil DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String   @db.Text
+  group     String   @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PageStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+model Page {
+  id              Int           @id @default(autoincrement())
+  title           String
+  slug            String        @unique
+  status          PageStatus    @default(DRAFT)
+  metaTitle       String?
+  metaDescription String?       @db.Text
+  metaKeywords    String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImage         String?
+  canonicalUrl    String?
+  noIndex         Boolean       @default(false)
+  structuredData  String?       @db.Text // JSON-LD schema markup
+  featuredImage   String?
+  authorId        Int
+  author          User          @relation(fields: [authorId], references: [id])
+  publishedAt     DateTime?
+  sections        PageSection[]
+  versions        PageVersion[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model PageSection {
+  id         Int            @id @default(autoincrement())
+  pageId     Int?
+  page       Page?          @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  templateId Int?
+  template   PageTemplate?  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  order      Int
+  type       String         // e.g. "section", "hero", "container", etc.
+  props      String         @db.Text // JSON properties
+  styles     String         @db.Text // JSON styles
+  blocks     PageBlock[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model PageBlock {
+  id         String       @id
+  sectionId  Int
+  section    PageSection  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     PageBlock?   @relation("BlockNesting", fields: [parentId], references: [id], onDelete: Cascade)
+  children   PageBlock[]  @relation("BlockNesting")
+  order      Int
+  type       String       // Hero, Heading, Paragraph, Button, Image, Gallery, Video, Divider, Spacer, Container, Columns, Card, Feature List, Pricing, FAQ, Accordion, Testimonials, CTA, Google Maps, HTML, Rich Text, Contact Form, Embed
+  props      String       @db.Text // JSON props
+  styles     String       @db.Text // JSON styles
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model PageVersion {
+  id        Int      @id @default(autoincrement())
+  pageId    Int
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  version   Int
+  data      String   @db.Text // Full snapshot JSON
+  createdAt DateTime @default(now())
+}
+
+model PageTemplate {
+  id          Int           @id @default(autoincrement())
+  name        String        // Landing Page, Company Profile, About, etc.
+  slug        String        @unique
+  description String?
+  thumbnail   String?
+  sections    PageSection[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model GlobalComponent {
+  id        Int      @id @default(autoincrement())
+  name      String   // Header, Footer, Navbar, CTA
+  type      String   // "header", "footer", "navbar", "cta"
+  props     String   @db.Text // JSON
+  styles    String   @db.Text // JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ThemeSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // global_colors, typography, spacing, buttons
+  value     String   @db.Text // JSON string of settings
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+

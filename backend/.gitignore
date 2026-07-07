@@ -1,0 +1,10 @@
+.env
+.env.local
+*.db
+dev.db
+prisma/dev.db
+prisma/migrations/
+node_modules
+dist
+backups
+uploads

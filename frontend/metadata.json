@@ -1,0 +1,6 @@
+{
+  "name": "Kreasi Advertising",
+  "description": "Penyedia jasa periklanan luar ruang (Billboard, Spanduk, Neon Box, Branding) terbaik di Bukittinggi, Sumatera Barat. Cepat, berkualitas, dan strategis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
