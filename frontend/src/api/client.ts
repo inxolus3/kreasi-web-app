@@ -33,6 +33,7 @@ export const apiV1Client = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // 2. Client for /api/auth
@@ -41,6 +42,7 @@ export const authClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // 3. Client for /api/blog
@@ -49,17 +51,8 @@ export const blogClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Request Interceptor to add JWT Auth tokens automatically
-const addAuthToken = (config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem('kreasi_auth_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-};
-
-apiV1Client.interceptors.request.use(addAuthToken);
-authClient.interceptors.request.use(addAuthToken);
-blogClient.interceptors.request.use(addAuthToken);
+// Credentials are sent via HttpOnly cookies; do not attach Authorization header from localStorage.

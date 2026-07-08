@@ -1,46 +1,54 @@
 import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { AppError } from '../errors/AppError';
 import { logger } from '../utils/logger';
 
-interface AppError extends Error {
-  statusCode?: number;
-  status?: string;
-  code?: string;
-}
-
 export const errorHandler = (
-  err: AppError,
+  err: unknown,
   req: Request,
   res: Response,
   _next: NextFunction
 ): void => {
-  logger.error(err);
+  logger.error({ err, req: { method: req.method, url: req.originalUrl } }, 'Unhandled error');
 
-  let statusCode = err.statusCode || 500;
-  let message = err.message || 'Internal Server Error';
-
-  // Mask database schemas and technical details in production for 500 errors
-  if (statusCode === 500 && process.env.NODE_ENV === 'production') {
-    message = 'Internal Server Error';
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      status: 'fail',
+      message: err.message,
+    });
+    return;
   }
 
-  // Map file upload, validation, and Multer errors to 400 Bad Request
-  if (
-    err.code?.startsWith('LIMIT_') ||
-    err.message?.includes('Only images are allowed') ||
-    err.name === 'MulterError'
-  ) {
-    statusCode = 400;
+  if (err instanceof PrismaClientKnownRequestError) {
+    if (err.code === 'P2002') {
+      res.status(409).json({
+        status: 'fail',
+        message: 'Data sudah ada atau duplikat.',
+      });
+      return;
+    }
   }
 
-  let status = err.status || 'error';
-  if (statusCode >= 400 && statusCode < 500) {
-    status = 'fail';
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    res.status(400).json({
+      status: 'fail',
+      message: 'Permintaan database tidak valid.',
+    });
+    return;
   }
+
+  if (err instanceof Error && err.message.includes('Only images are allowed')) {
+    res.status(400).json({ status: 'fail', message: err.message });
+    return;
+  }
+
+  const statusCode = 500;
+  const message = process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err instanceof Error ? err.message : 'Internal Server Error';
 
   res.status(statusCode).json({
-    status,
-    statusCode,
+    status: 'error',
     message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    ...(process.env.NODE_ENV !== 'production' && err instanceof Error && { stack: err.stack }),
   });
 };

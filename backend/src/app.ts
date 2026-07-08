@@ -60,17 +60,21 @@ const baseDir = getDirname();
 
 const app = express();
 
-// Helmet Security Headers with dynamic CSP compatible with Tailwind & external images
+// Helmet Security Headers with safer CSP defaults
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        // Disallow unsafe-inline / unsafe-eval for scripts to reduce XSS risk
+        scriptSrc: ["'self'"],
+        // Styles often need inline for some frameworks; keep only when necessary
+        styleSrc: ["'self'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-        imgSrc: ["'self'", "data:", "blob:", "*"],
-        connectSrc: ["'self'", "*"],
+        // Restrict images to self, data and blob only
+        imgSrc: ["'self'", "data:", "blob:"],
+        // Restrict connect sources to self by default
+        connectSrc: ["'self'"],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: [],
       },
@@ -86,11 +90,17 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, Postman, etc.)
       if (!origin) return callback(null, true);
-      
-      const allowedOrigins = env.FRONTEND_URL === '*' ? '*' : env.FRONTEND_URL.split(',');
-      if (allowedOrigins === '*' || allowedOrigins.includes(origin)) {
+
+      // In production, do NOT treat '*' as permissive. Only allow '*' in non-prod dev.
+      const allowedOrigins = env.FRONTEND_URL === '*' ? (env.NODE_ENV === 'production' ? [] : '*') : env.FRONTEND_URL.split(',');
+
+      if (allowedOrigins === '*') return callback(null, true);
+
+      if (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+
+      // Deny if origin is not explicitly allowed
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,

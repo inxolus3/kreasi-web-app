@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const BillboardStatusEnum = z.enum(['AVAILABLE', 'BOOKED', 'OCCUPIED', 'MAINTENANCE', 'INACTIVE']);
+const BillboardStatusSchema = z.string().min(1).max(100);
 const BillboardTypeEnum = z.enum(['Baliho', 'Billboard']);
 const BillboardOrientationEnum = z.enum(['Satu Sisi', 'Dua Sisi']);
 const BillboardLightingEnum = z.enum(['Back Light', 'Front Light', 'Non Light']);
@@ -16,14 +16,13 @@ export const createBillboardSchema = z.object({
     address: z.string().min(1, 'Address is required').max(1000),
     latitude: z.coerce.number({ invalid_type_error: 'Latitude must be a number' }),
     longitude: z.coerce.number({ invalid_type_error: 'Longitude must be a number' }),
-    googleMapsUrl: z.string().url().max(1000).optional().nullable().or(z.literal('')),
     size: z.string().min(1, 'Size is required').max(50),
     type: BillboardTypeEnum,
     orientation: BillboardOrientationEnum,
     lighting: BillboardLightingEnum,
     traffic: z.string().max(255).optional().nullable(),
     price: z.coerce.number().nonnegative('Price must be a non-negative number'),
-    status: BillboardStatusEnum.optional().default('AVAILABLE'),
+    status: BillboardStatusSchema.optional().default('AVAILABLE'),
     description: z.string().max(5000).optional().nullable(),
     thumbnail: z.string().max(1000).optional().nullable(),
     gallery: z.array(z.string().max(1000)).optional(),
@@ -43,14 +42,13 @@ export const updateBillboardSchema = z.object({
     address: z.string().min(1).max(1000).optional(),
     latitude: z.coerce.number().optional(),
     longitude: z.coerce.number().optional(),
-    googleMapsUrl: z.string().url().max(1000).optional().nullable().or(z.literal('')),
     size: z.string().min(1).max(50).optional(),
     type: BillboardTypeEnum.optional(),
     orientation: BillboardOrientationEnum.optional(),
     lighting: BillboardLightingEnum.optional(),
     traffic: z.string().max(255).optional().nullable(),
     price: z.coerce.number().nonnegative().optional(),
-    status: BillboardStatusEnum.optional(),
+    status: BillboardStatusSchema.optional(),
     description: z.string().max(5000).optional().nullable(),
     thumbnail: z.string().max(1000).optional().nullable(),
     gallery: z.array(z.string().max(1000)).optional(),
@@ -61,7 +59,7 @@ export const updateBillboardSchema = z.object({
 
 export const updateBillboardStatusSchema = z.object({
   body: z.object({
-    status: BillboardStatusEnum,
+    status: BillboardStatusSchema,
   }),
 });
 
@@ -73,7 +71,7 @@ export const getBillboardsQuerySchema = z.object({
     province: z.string().max(100).optional(),
     city: z.string().max(100).optional(),
     district: z.string().max(100).optional(),
-    status: BillboardStatusEnum.optional(),
+    status: BillboardStatusSchema.optional(),
     type: BillboardTypeEnum.optional(),
     orientation: BillboardOrientationEnum.optional(),
     lighting: BillboardLightingEnum.optional(),

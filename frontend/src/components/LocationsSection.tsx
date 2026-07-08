@@ -36,21 +36,26 @@ export default function LocationsSection({ isDarkMode }: LocationsSectionProps) 
   const { data: billboardsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['billboards'],
     queryFn: () => billboardApi.getBillboards(),
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
   });
 
   const { data: citiesData } = useQuery({
     queryKey: ['billboards', 'cities'],
     queryFn: () => billboardApi.getCities(),
+    staleTime: 10 * 60 * 1000,
   });
 
   const { data: typesData } = useQuery({
     queryKey: ['billboards', 'types'],
     queryFn: () => billboardApi.getTypes(),
+    staleTime: 10 * 60 * 1000,
   });
 
   const { data: lightingsData } = useQuery({
     queryKey: ['billboards', 'lightings'],
     queryFn: () => billboardApi.getLightings(),
+    staleTime: 10 * 60 * 1000,
   });
 
   const billboards = useMemo(() => billboardsData?.data || [], [billboardsData]);
@@ -81,7 +86,6 @@ export default function LocationsSection({ isDarkMode }: LocationsSectionProps) 
     return billboards.filter((bb) => {
       const matchesSearch = 
         bb.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        bb.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
         bb.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
         bb.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
         bb.district.toLowerCase().includes(searchQuery.toLowerCase());
@@ -290,15 +294,8 @@ export default function LocationsSection({ isDarkMode }: LocationsSectionProps) 
                       {/* Badge / Code Row */}
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-[11px] font-black uppercase tracking-wider text-brand dark:text-brand-secondary bg-brand/5 dark:bg-brand-secondary/10 border border-brand/10 dark:border-brand-secondary/20 px-2 py-0.5">
-                          {selectedBillboard.code}
+                          {selectedBillboard.type}
                         </span>
-                        {selectedBillboard.status === 'AVAILABLE' ? (
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 border border-emerald-500/10 uppercase">Tersedia</span>
-                        ) : selectedBillboard.status === 'BOOKED' ? (
-                          <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 px-2 py-0.5 border border-rose-500/10 uppercase">Disewa</span>
-                        ) : (
-                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 border border-amber-500/10 uppercase">Perawatan</span>
-                        )}
                       </div>
 
                       {/* Title */}

@@ -32,7 +32,7 @@ interface Billboard {
   thumbnail?: string;
   gallery?: string[];
   price?: number;
-  status: 'AVAILABLE' | 'RENTED' | 'MAINTENANCE';
+  status?: string;
 }
 
 export const BillboardsPage: React.FC = () => {

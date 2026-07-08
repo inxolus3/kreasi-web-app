@@ -1,38 +1,32 @@
 import { BillboardRepository } from './billboard.repository';
-import { Prisma, BillboardStatus } from '@prisma/client';
+import { Prisma, Billboard } from '@prisma/client';
+import { AppError } from '../../errors/AppError';
 
 export class BillboardService {
-  private billboardRepository: BillboardRepository;
+  constructor(private readonly billboardRepository: BillboardRepository) {}
 
-  constructor() {
-    this.billboardRepository = new BillboardRepository();
-  }
-
-  async createBillboard(data: any) {
-    // Check code uniqueness
-    const existingCode = await this.billboardRepository.findByCode(data.code);
+  async createBillboard(data: Prisma.BillboardCreateInput): Promise<Billboard> {
+    const existingCode = await this.billboardRepository.findByCode(data.code as string);
     if (existingCode) {
-      throw new Error('Billboard with this code already exists');
+      throw new AppError('Billboard with this code already exists', 409);
     }
 
-    // Check slug uniqueness
-    const existingSlug = await this.billboardRepository.findBySlug(data.slug);
+    const existingSlug = await this.billboardRepository.findBySlug(data.slug as string);
     if (existingSlug) {
-      throw new Error('Billboard with this slug already exists');
+      throw new AppError('Billboard with this slug already exists', 409);
     }
 
     return this.billboardRepository.create(data);
   }
 
-  async getBillboards(query: any) {
-    const page = parseInt(query.page || '1', 10);
-    const limit = parseInt(query.limit || '10', 10);
+  async getBillboards(query: Record<string, unknown>) {
+    const page = parseInt(String(query.page ?? '1'), 10);
+    const limit = parseInt(String(query.limit ?? '10'), 10);
     const skip = (page - 1) * limit;
 
     const where: Prisma.BillboardWhereInput = {};
 
-    // Search filter: matching code, name, city, district, or address
-    if (query.search) {
+    if (typeof query.search === 'string' && query.search.trim()) {
       where.OR = [
         { name: { contains: query.search, mode: 'insensitive' } },
         { code: { contains: query.search, mode: 'insensitive' } },
@@ -43,36 +37,34 @@ export class BillboardService {
       ];
     }
 
-    // Exact match filters
-    if (query.province) {
+    if (typeof query.province === 'string' && query.province) {
       where.province = { equals: query.province, mode: 'insensitive' };
     }
-    if (query.city) {
+    if (typeof query.city === 'string' && query.city) {
       where.city = { equals: query.city, mode: 'insensitive' };
     }
-    if (query.district) {
+    if (typeof query.district === 'string' && query.district) {
       where.district = { equals: query.district, mode: 'insensitive' };
     }
-    if (query.status) {
-      where.status = query.status as BillboardStatus;
+    if (typeof query.status === 'string' && query.status) {
+      where.status = { equals: query.status, mode: 'insensitive' };
     }
-    if (query.type) {
+    if (typeof query.type === 'string' && query.type) {
       where.type = { equals: query.type, mode: 'insensitive' };
     }
-    if (query.orientation) {
+    if (typeof query.orientation === 'string' && query.orientation) {
       where.orientation = { equals: query.orientation, mode: 'insensitive' };
     }
-    if (query.lighting) {
+    if (typeof query.lighting === 'string' && query.lighting) {
       where.lighting = { equals: query.lighting, mode: 'insensitive' };
     }
 
-    // Price range filters
     if (query.minPrice || query.maxPrice) {
       where.price = {};
-      if (query.minPrice) {
+      if (typeof query.minPrice === 'string' && query.minPrice) {
         where.price.gte = parseFloat(query.minPrice);
       }
-      if (query.maxPrice) {
+      if (typeof query.maxPrice === 'string' && query.maxPrice) {
         where.price.lte = parseFloat(query.maxPrice);
       }
     }
@@ -83,6 +75,28 @@ export class BillboardService {
         take: limit,
         where,
         orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          slug: true,
+          province: true,
+          city: true,
+          district: true,
+          address: true,
+          latitude: true,
+          longitude: true,
+          size: true,
+          type: true,
+          orientation: true,
+          lighting: true,
+          price: true,
+          status: true,
+          thumbnail: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       }),
       this.billboardRepository.count(where),
     ]);
@@ -98,76 +112,76 @@ export class BillboardService {
     };
   }
 
-  async getBillboardById(id: number) {
+  async getBillboardById(id: number): Promise<Billboard> {
     const billboard = await this.billboardRepository.findById(id);
     if (!billboard) {
-      throw new Error('Billboard not found');
+      throw new AppError('Billboard not found', 404);
     }
     return billboard;
   }
 
-  async getBillboardBySlug(slug: string) {
+  async getBillboardBySlug(slug: string): Promise<Billboard> {
     const billboard = await this.billboardRepository.findBySlug(slug);
     if (!billboard) {
-      throw new Error('Billboard not found');
+      throw new AppError('Billboard not found', 404);
     }
     return billboard;
   }
 
-  async updateBillboard(id: number, data: any) {
+  async updateBillboard(id: number, data: Prisma.BillboardUpdateInput): Promise<Billboard> {
     const existing = await this.billboardRepository.findById(id);
     if (!existing) {
-      throw new Error('Billboard not found');
+      throw new AppError('Billboard not found', 404);
     }
 
-    if (data.code && data.code !== existing.code) {
+    if (typeof data.code === 'string' && data.code !== existing.code) {
       const existingCode = await this.billboardRepository.findByCode(data.code);
       if (existingCode) {
-        throw new Error('Billboard with this code already exists');
+        throw new AppError('Billboard with this code already exists', 409);
       }
     }
 
-    if (data.slug && data.slug !== existing.slug) {
+    if (typeof data.slug === 'string' && data.slug !== existing.slug) {
       const existingSlug = await this.billboardRepository.findBySlug(data.slug);
       if (existingSlug) {
-        throw new Error('Billboard with this slug already exists');
+        throw new AppError('Billboard with this slug already exists', 409);
       }
     }
 
     return this.billboardRepository.update(id, data);
   }
 
-  async updateBillboardStatus(id: number, status: BillboardStatus) {
+  async updateBillboardStatus(id: number, status: string): Promise<Billboard> {
     const existing = await this.billboardRepository.findById(id);
     if (!existing) {
-      throw new Error('Billboard not found');
+      throw new AppError('Billboard not found', 404);
     }
 
     return this.billboardRepository.update(id, { status });
   }
 
-  async deleteBillboard(id: number) {
+  async deleteBillboard(id: number): Promise<Billboard> {
     const existing = await this.billboardRepository.findById(id);
     if (!existing) {
-      throw new Error('Billboard not found');
+      throw new AppError('Billboard not found', 404);
     }
     return this.billboardRepository.delete(id);
   }
 
-  async getUniqueCities() {
+  async getUniqueCities(): Promise<string[]> {
     const cities = await this.billboardRepository.getPrismaClient().billboard.findMany({
       select: { city: true },
       distinct: ['city'],
       orderBy: { city: 'asc' },
     });
-    return cities.map(c => c.city);
+    return cities.map((c) => c.city);
   }
 
-  getTypes() {
+  getTypes(): string[] {
     return ['Baliho', 'Billboard'];
   }
 
-  getLightings() {
+  getLightings(): string[] {
     return ['Back Light', 'Front Light', 'Non Light'];
   }
 }

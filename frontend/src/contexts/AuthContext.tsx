@@ -25,23 +25,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('kreasi_auth_token');
-    if (!token) {
-      setIsLoading(false);
-      setIsAuthenticated(false);
-      setUser(null);
-      return;
-    }
-
     try {
       const data = await authApi.getMe();
-      // Assume getMe returns the user object directly, or wrapped in { user }
       const currentUser = data.user || data;
       setUser(currentUser);
       setIsAuthenticated(true);
     } catch (error) {
       console.error('Check auth failed:', error);
-      localStorage.removeItem('kreasi_auth_token');
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -52,15 +42,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const data = await authApi.login({ email, password });
-      if (data && data.token) {
-        localStorage.setItem('kreasi_auth_token', data.token);
-        const currentUser = data.user || data;
-        setUser(currentUser);
-        setIsAuthenticated(true);
-      } else {
-        throw new Error('No token returned from login');
-      }
+      await authApi.login({ email, password });
+      // Server sets cookies; refresh client-side user state
+      await checkAuth();
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -76,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Logout request failed:', error);
     } finally {
-      localStorage.removeItem('kreasi_auth_token');
+      // Server clears cookie; clear client state
       setUser(null);
       setIsAuthenticated(false);
       setIsLoading(false);
