@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { BillboardController } from './billboard.controller';
+import { BillboardService } from './billboard.service';
+import { BillboardRepository } from './billboard.repository';
 import { validate } from '../../middlewares/validationHandler';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { authorize } from '../../middlewares/role.middleware';
@@ -14,7 +16,8 @@ import {
 } from './billboard.validation';
 
 const router = Router();
-const billboardController = new BillboardController();
+const billboardService = new BillboardService(new BillboardRepository());
+const billboardController = new BillboardController(billboardService);
 
 // PUBLIC APIs
 // GET /api/v1/public/billboards

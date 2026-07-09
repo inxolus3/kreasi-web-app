@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import prisma from '../utils/prisma';
 import { authenticate } from '../middlewares/auth.middleware';
 import { authorize } from '../middlewares/role.middleware';
@@ -12,7 +14,11 @@ router.get('/export', authenticate, authorize(['ADMIN']), async (req: Request, r
   try {
     const data = {
       billboards: await prisma.billboard.findMany(),
-      users: await prisma.user.findMany(),
+      // Redact sensitive fields before exporting
+      users: (await prisma.user.findMany()).map((u) => {
+        const { password, refreshToken, resetToken, resetTokenExpiry, ...safe } = u as any;
+        return safe;
+      }),
       pages: await prisma.page.findMany({
         include: {
           sections: {
@@ -66,19 +72,24 @@ router.post('/import', authenticate, authorize(['ADMIN']), async (req: Request, 
       // Upsert users (keep original to prevent lockout, but restore any others)
       if (data.users && Array.isArray(data.users)) {
         for (const user of data.users) {
+          // Do NOT restore password or refreshToken from import file. Create/upsert users
+          // with a generated placeholder password and null refreshToken to avoid injecting
+          // sensitive secrets from import files.
+          const placeholderPassword = crypto.randomBytes(16).toString('hex');
+          const hashedPlaceholder = await bcrypt.hash(placeholderPassword, 10);
+
           await tx.user.upsert({
             where: { email: user.email },
             update: {
               name: user.name,
-              password: user.password,
               role: user.role,
-              refreshToken: user.refreshToken,
+              refreshToken: null,
             },
             create: {
               id: user.id,
               email: user.email,
               name: user.name,
-              password: user.password,
+              password: hashedPlaceholder,
               role: user.role,
             },
           });

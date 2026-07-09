@@ -31,8 +31,6 @@ interface Billboard {
   lighting?: string;
   thumbnail?: string;
   gallery?: string[];
-  price?: number;
-  status: 'AVAILABLE' | 'RENTED' | 'MAINTENANCE';
 }
 
 export const BillboardsPage: React.FC = () => {
@@ -40,7 +38,8 @@ export const BillboardsPage: React.FC = () => {
   const [filteredBillboards, setFilteredBillboards] = useState<Billboard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [lightingFilter, setLightingFilter] = useState('ALL');
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,8 +61,6 @@ export const BillboardsPage: React.FC = () => {
     gallery: [],
     latitude: 0,
     longitude: 0,
-    price: 0,
-    status: 'AVAILABLE',
   });
 
   const fetchBillboards = async () => {
@@ -76,47 +73,9 @@ export const BillboardsPage: React.FC = () => {
       setFilteredBillboards(data);
     } catch (err) {
       console.error('Failed to fetch billboards:', err);
-      // Fallback data for stellar mock CMS experience in case dev database is offline
-      const mockData: Billboard[] = [
-        {
-          id: 1,
-          name: 'Billboard Jl. Sudirman KM 5',
-          province: 'DKI Jakarta',
-          city: 'Jakarta Selatan',
-          address: 'Jl. Jend. Sudirman Kav 21',
-          size: '4m x 8m',
-          type: 'LED Billboard',
-          orientation: 'Vertical',
-          price: 15000000,
-          status: 'AVAILABLE',
-        },
-        {
-          id: 2,
-          name: 'Bando Gatsu Flyover Tomang',
-          province: 'DKI Jakarta',
-          city: 'Jakarta Barat',
-          address: 'Flyover Tomang Raya Sisi Barat',
-          size: '10m x 5m',
-          type: 'Bando Jalan',
-          orientation: 'Horizontal',
-          price: 25000000,
-          status: 'RENTED',
-        },
-        {
-          id: 3,
-          name: 'Baliho Simpang Dago',
-          province: 'Jawa Barat',
-          city: 'Bandung',
-          address: 'Jl. Ir. H. Juanda No. 120',
-          size: '5m x 10m',
-          type: 'Baliho',
-          orientation: 'Vertical',
-          price: 12000000,
-          status: 'AVAILABLE',
-        },
-      ];
-      setBillboards(mockData);
-      setFilteredBillboards(mockData);
+      setBillboards([]);
+      setFilteredBillboards([]);
+      triggerAlert('error', 'Gagal mengambil data billboard dari server.');
     } finally {
       setIsLoading(false);
     }
@@ -139,12 +98,28 @@ export const BillboardsPage: React.FC = () => {
       );
     }
 
-    if (statusFilter !== 'ALL') {
-      result = result.filter((b) => b.status === statusFilter);
+    if (typeFilter !== 'ALL') {
+      result = result.filter((b) => (b.type || '').toLowerCase() === typeFilter.toLowerCase());
+    }
+
+    if (lightingFilter !== 'ALL') {
+      result = result.filter((b) => (b.lighting || '').toLowerCase() === lightingFilter.toLowerCase());
     }
 
     setFilteredBillboards(result);
-  }, [searchTerm, statusFilter, billboards]);
+  }, [searchTerm, billboards, typeFilter, lightingFilter]);
+
+  const uniqueTypes = React.useMemo(() => {
+    const s = new Set<string>();
+    billboards.forEach((b) => b.type && s.add(b.type));
+    return Array.from(s);
+  }, [billboards]);
+
+  const uniqueLightings = React.useMemo(() => {
+    const s = new Set<string>();
+    billboards.forEach((b) => b.lighting && s.add(b.lighting));
+    return Array.from(s);
+  }, [billboards]);
 
   const handleOpenAdd = () => {
     setCurrentBillboard(null);
@@ -161,8 +136,6 @@ export const BillboardsPage: React.FC = () => {
       gallery: [],
       latitude: -6.2088,
       longitude: 106.8456,
-      price: 10000000,
-      status: 'AVAILABLE',
     });
     setIsModalOpen(true);
   };
@@ -182,7 +155,6 @@ export const BillboardsPage: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'price' ? parseFloat(value) || 0 : value,
     }));
   };
 
@@ -191,25 +163,13 @@ export const BillboardsPage: React.FC = () => {
     try {
       if (currentBillboard) {
         // Edit flow
-        try {
-          await apiV1Client.put(`/billboards/${currentBillboard.id}`, formData);
-        } catch {
-          // Fallback to local mutation if API route has permissions/database lockouts
-        }
-        setBillboards((prev) =>
-          prev.map((b) => (b.id === currentBillboard.id ? ({ ...b, ...formData } as Billboard) : b))
-        );
+        await apiV1Client.put(`/billboards/${currentBillboard.id}`, formData);
+        await fetchBillboards();
         triggerAlert('success', `Billboard "${formData.name}" berhasil diperbarui.`);
       } else {
         // Create flow
-        const newId = billboards.length > 0 ? Math.max(...billboards.map((b) => b.id)) + 1 : 1;
-        const newBillboard = { id: newId, ...formData } as Billboard;
-        try {
-          await apiV1Client.post('/billboards', formData);
-        } catch {
-          // Fallback
-        }
-        setBillboards((prev) => [newBillboard, ...prev]);
+        await apiV1Client.post('/billboards', formData);
+        await fetchBillboards();
         triggerAlert('success', `Billboard "${formData.name}" berhasil ditambahkan.`);
       }
       setIsModalOpen(false);
@@ -221,12 +181,8 @@ export const BillboardsPage: React.FC = () => {
   const handleDelete = async () => {
     if (!currentBillboard) return;
     try {
-      try {
-        await apiV1Client.delete(`/billboards/${currentBillboard.id}`);
-      } catch {
-        // Fallback
-      }
-      setBillboards((prev) => prev.filter((b) => b.id !== currentBillboard.id));
+      await apiV1Client.delete(`/billboards/${currentBillboard.id}`);
+      await fetchBillboards();
       triggerAlert('success', `Billboard "${currentBillboard.name}" berhasil dihapus.`);
       setIsDeleteOpen(false);
     } catch (err: any) {
@@ -250,7 +206,7 @@ export const BillboardsPage: React.FC = () => {
             <ImageIcon className="w-7 h-7 text-amber-500" />
             Manage Billboards
           </h1>
-          <p className="text-zinc-400 text-sm mt-1">Kelola data papan reklame, status sewa, spesifikasi, dan harga sewa iklan</p>
+          <p className="text-zinc-400 text-sm mt-1">Kelola data papan reklame & Spesifikasi</p>
         </div>
 
         <button
@@ -298,21 +254,45 @@ export const BillboardsPage: React.FC = () => {
           />
         </div>
 
-        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          {['ALL', 'AVAILABLE', 'RENTED', 'MAINTENANCE'].map((status) => (
-            <button
-              key={status}
-              id={`filter-status-${status.toLowerCase()}`}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap border ${
-                statusFilter === status
-                  ? 'bg-amber-500 border-amber-500 text-zinc-950 shadow-md shadow-amber-500/10'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              {status}
-            </button>
-          ))}
+        <div className="flex gap-3 w-full md:w-auto items-center">
+          <select
+            id="filter-type"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="min-w-[140px] px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-300 text-sm focus:outline-none focus:border-amber-500"
+          >
+            <option value="ALL">Semua Jenis</option>
+            {uniqueTypes.length > 0 ? (
+              uniqueTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))
+            ) : (
+              <>
+                <option value="Billboard">Billboard</option>
+                <option value="Baliho">Baliho</option>
+              </>
+            )}
+          </select>
+
+          <select
+            id="filter-lighting"
+            value={lightingFilter}
+            onChange={(e) => setLightingFilter(e.target.value)}
+            className="min-w-[140px] px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-300 text-sm focus:outline-none focus:border-amber-500"
+          >
+            <option value="ALL">Semua Pencahayaan</option>
+            {uniqueLightings.length > 0 ? (
+              uniqueLightings.map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))
+            ) : (
+              <>
+                <option value="Back Light">Back Light</option>
+                <option value="Front Light">Front Light</option>
+                <option value="Non Light">Non Light</option>
+              </>
+            )}
+          </select>
         </div>
       </div>
 
@@ -326,8 +306,6 @@ export const BillboardsPage: React.FC = () => {
                 <th className="p-4">Billboard Info</th>
                 <th className="p-4">Lokasi & Alamat</th>
                 <th className="p-4">Dimensi & Tipe</th>
-                <th className="p-4">Harga / Bulan</th>
-                <th className="p-4">Status</th>
                 <th className="p-4 pr-6 text-right">Actions</th>
               </tr>
             </thead>
@@ -366,20 +344,6 @@ export const BillboardsPage: React.FC = () => {
                     <td className="p-4">
                       <div className="font-semibold text-zinc-300">{b.size || '-'}</div>
                       <div className="text-xs text-zinc-500 mt-0.5">{b.orientation || 'Vertical'}</div>
-                    </td>
-                    <td className="p-4 font-mono font-medium text-amber-500">
-                      Rp {(b.price || 0).toLocaleString('id-ID')}
-                    </td>
-                    <td className="p-4">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                        b.status === 'AVAILABLE'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : b.status === 'RENTED'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      }`}>
-                        {b.status}
-                      </span>
                     </td>
                     <td className="p-4 pr-6 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -440,6 +404,7 @@ export const BillboardsPage: React.FC = () => {
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
                 </div>
+              </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Provinsi</label>
@@ -580,33 +545,6 @@ export const BillboardsPage: React.FC = () => {
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Harga Sewa Bulanan (IDR)</label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price || 0}
-                    onChange={handleInputChange}
-                    placeholder="Contoh: 15000000"
-                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Status Ketersediaan</label>
-                  <select
-                    name="status"
-                    value={formData.status || 'AVAILABLE'}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:border-amber-500 text-sm"
-                  >
-                    <option value="AVAILABLE">AVAILABLE (Tersedia)</option>
-                    <option value="RENTED">RENTED (Disewa)</option>
-                    <option value="MAINTENANCE">MAINTENANCE (Perawatan)</option>
-                  </select>
-                </div>
-              </div>
 
               <div className="flex items-center justify-end gap-3 pt-6 border-t border-zinc-800">
                 <button

@@ -47,7 +47,8 @@ export class AuthController {
         maxAge: 15 * 60 * 1000, // 15 minutes
       });
 
-      res.status(200).json({ status: 'success', data });
+      // Do not return tokens in JSON body to avoid encouraging client-side storage.
+      res.status(200).json({ status: 'success', data: { user: data.user } });
     } catch (error: any) {
       if (error.message === 'Invalid credentials') {
         res.status(401).json({ status: 'fail', message: error.message });
@@ -99,7 +100,8 @@ export class AuthController {
         maxAge: 15 * 60 * 1000,
       });
 
-      res.status(200).json({ status: 'success', data });
+      // Return only user object; tokens are set as HttpOnly cookies.
+      res.status(200).json({ status: 'success', data: { user: data.user } });
     } catch (error: any) {
       if (error.message === 'Invalid refresh token') {
         res.status(401).json({ status: 'fail', message: error.message });

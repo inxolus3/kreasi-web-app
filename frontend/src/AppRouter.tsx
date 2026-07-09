@@ -1,20 +1,22 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import App from './App';
 import { LoginPage } from './pages/admin/LoginPage';
 import { AdminLayout } from './layouts/AdminLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { DashboardPage } from './pages/admin/DashboardPage';
-import { BillboardsPage } from './pages/admin/BillboardsPage';
-import { BlogPage } from './pages/admin/BlogPage';
-import { SettingsPage } from './pages/admin/SettingsPage';
-import { UsersPage } from './pages/admin/UsersPage';
-import { PagesPage } from './pages/admin/PagesPage';
-import { PageBuilder } from './pages/admin/PageBuilder';
+
+const DashboardPage = lazy(() => import('./pages/admin/DashboardPage'));
+const BillboardsPage = lazy(() => import('./pages/admin/BillboardsPage'));
+const BlogPage = lazy(() => import('./pages/admin/BlogPage'));
+const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
+const UsersPage = lazy(() => import('./pages/admin/UsersPage'));
+const PagesPage = lazy(() => import('./pages/admin/PagesPage'));
+const PageBuilder = lazy(() => import('./pages/admin/PageBuilder'));
 
 export const AppRouter: React.FC = () => {
   return (
-    <Routes>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Memuat halaman...</div>}>
+      <Routes>
       {/* Public Client Site */}
       <Route path="/" element={<App />} />
 
@@ -52,6 +54,7 @@ export const AppRouter: React.FC = () => {
       {/* Fallback Catch All */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 };
 

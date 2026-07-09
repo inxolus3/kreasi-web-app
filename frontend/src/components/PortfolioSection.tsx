@@ -282,7 +282,7 @@ export default function PortfolioSection({ setActiveTab }: PortfolioSectionProps
               id="portfolio-cta-download"
             >
               <Download className="w-4 h-4 shrink-0" />
-              Download Price List
+              HUBUNGI KAMI UNTUK KATALOG & PRICE LIST
             </button>
           </div>
         </div>

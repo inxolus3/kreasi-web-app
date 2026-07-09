@@ -3,14 +3,24 @@ import { verifyToken } from '../utils/jwt.util';
 import { logger } from '../utils/logger';
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+  // Support Bearer Authorization header OR HttpOnly cookies named 'accessToken'
+  let token: string | undefined;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
+  // Fallback: check cookie header manually (no cookie-parser dependency)
+  if (!token && req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:accessToken|access_token|kreasi_access_token)=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+
+  if (!token) {
     res.status(401).json({ status: 'fail', message: 'Unauthorized: No token provided' });
     return;
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = verifyToken(token);

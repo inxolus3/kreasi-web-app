@@ -7,7 +7,8 @@ export function sanitizeHtml(html: string): string {
       'p', 'b', 'i', 'em', 'strong', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
       'ul', 'ol', 'li', 'br', 'span', 'div', 'img', 'blockquote', 'code', 'pre'
     ],
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'style']
+    // Remove `style` and `class` from allowed attributes to reduce CSS-based exfiltration
+    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'id', 'target']
   }) as string;
 }
 
