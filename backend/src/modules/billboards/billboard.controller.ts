@@ -23,6 +23,9 @@ export class BillboardController {
         address: b.address,
         traffic: b.traffic,
         thumbnail: b.thumbnail,
+        type: b.type,
+        lighting: b.lighting,
+        gallery: b.gallery || [],
       }));
 
       res.status(200).json({ status: 'success', data: markers });

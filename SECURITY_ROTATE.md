@@ -1,4 +1,4 @@
-# Secret Rotation & Git History Cleanup
+   # Secret Rotation & Git History Cleanup
 
 This document lists recommended steps to rotate secrets and remove sensitive files from git history.
 

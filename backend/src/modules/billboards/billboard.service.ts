@@ -46,9 +46,6 @@ export class BillboardService {
     if (typeof query.district === 'string' && query.district) {
       where.district = { equals: query.district, mode: 'insensitive' };
     }
-    if (typeof query.status === 'string' && query.status) {
-      where.status = { equals: query.status, mode: 'insensitive' };
-    }
     if (typeof query.type === 'string' && query.type) {
       where.type = { equals: query.type, mode: 'insensitive' };
     }
@@ -57,16 +54,6 @@ export class BillboardService {
     }
     if (typeof query.lighting === 'string' && query.lighting) {
       where.lighting = { equals: query.lighting, mode: 'insensitive' };
-    }
-
-    if (query.minPrice || query.maxPrice) {
-      where.price = {};
-      if (typeof query.minPrice === 'string' && query.minPrice) {
-        where.price.gte = parseFloat(query.minPrice);
-      }
-      if (typeof query.maxPrice === 'string' && query.maxPrice) {
-        where.price.lte = parseFloat(query.maxPrice);
-      }
     }
 
     const [billboards, total] = await Promise.all([
@@ -90,9 +77,8 @@ export class BillboardService {
           type: true,
           orientation: true,
           lighting: true,
-          price: true,
-          status: true,
           thumbnail: true,
+          gallery: true,
           description: true,
           createdAt: true,
           updatedAt: true,

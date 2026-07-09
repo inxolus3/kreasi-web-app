@@ -58,9 +58,6 @@ export interface Billboard {
   orientation: 'Satu Sisi' | 'Dua Sisi';
   lighting: 'Back Light' | 'Front Light' | 'Non Light';
   traffic?: string | null;
-  code?: string;
-  price?: number;
-  status?: string | null;
   description?: string | null;
   thumbnail?: string | null;
   gallery: string[];

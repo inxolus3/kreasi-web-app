@@ -200,15 +200,28 @@ if (env.SENTRY_DSN) {
 // Global Error Handler
 app.use(errorHandler);
 
-// Serve frontend static files
+// Serve frontend static files when a production build is available
 const frontendPath = path.join(baseDir, '../../frontend/dist');
-app.use(express.static(frontendPath));
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  } else {
-    res.status(404).json({ message: 'API route not found' });
-  }
-});
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    } else {
+      res.status(404).json({ message: 'API route not found' });
+    }
+  });
+} else {
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.status(200).json({
+        status: 'ok',
+        message: 'Backend is running. Frontend build not found, please run the frontend build first.',
+      });
+    } else {
+      res.status(404).json({ message: 'API route not found' });
+    }
+  });
+}
 
 export default app;
