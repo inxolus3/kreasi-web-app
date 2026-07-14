@@ -1,34 +1,40 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../utils/jwt.util';
-import { logger } from '../utils/logger';
+import jwt from 'jsonwebtoken';
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  // Support Bearer Authorization header OR HttpOnly cookies named 'accessToken'
-  let token: string | undefined;
-
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.split(' ')[1];
-  }
-
-  // Fallback: check cookie header manually (no cookie-parser dependency)
-  if (!token && req.headers.cookie) {
-    const match = req.headers.cookie.match(/(?:accessToken|access_token|kreasi_access_token)=([^;]+)/);
-    if (match) token = decodeURIComponent(match[1]);
-  }
-
-  if (!token) {
-    res.status(401).json({ status: 'fail', message: 'Unauthorized: No token provided' });
-    return;
-  }
-
   try {
-    const decoded = verifyToken(token);
+    // 1. Cek Authorization header (Bearer token)
+    const authHeader = req.headers.authorization;
+    let token: string | undefined;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
+    // 2. Kalau tidak ada, cek cookie
+    if (!token) {
+      token = req.cookies?.accessToken;
+    }
+    
+    if (!token) {
+      res.status(401).json({ status: 'fail', message: 'Unauthorized: No token provided' });
+      return;
+    }
+    
+    // 3. Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     req.user = decoded;
+    
     next();
   } catch (error) {
-    logger.warn('Token verification failed: ' + (error instanceof Error ? error.message : String(error)));
-    res.status(401).json({ status: 'fail', message: 'Unauthorized: Invalid or expired token' });
-    return;
+    res.status(401).json({ status: 'fail', message: 'Unauthorized: Invalid token' });
   }
 };

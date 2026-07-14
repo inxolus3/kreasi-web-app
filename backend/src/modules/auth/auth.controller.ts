@@ -1,6 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 
+// ✅ TAMBAHKAN: Interface untuk response data
+interface LoginData {
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: number;
+    email: string;
+    role: string;
+  };
+}
+
+interface RefreshData {
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: number;
+    email: string;
+    role: string;
+  };
+}
+
 export class AuthController {
   private authService: AuthService;
 
@@ -21,34 +42,28 @@ export class AuthController {
     }
   };
 
-  private getCookie(req: Request, name: string): string | undefined {
-    if (!req.headers.cookie) return undefined;
-    const match = req.headers.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-    return match ? decodeURIComponent(match[1]) : undefined;
-  }
-
   login = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await this.authService.login(req.body);
+      const data = await this.authService.login(req.body) as LoginData; // ✅ Type assertion
       
       const isProd = process.env.NODE_ENV === 'production';
       
+      // Set refreshToken as HttpOnly cookie
       res.cookie('refreshToken', data.refreshToken, {
         httpOnly: true,
         secure: isProd,
         sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      res.cookie('accessToken', data.accessToken, {
-        httpOnly: true,
-        secure: isProd,
-        sameSite: 'lax',
-        maxAge: 15 * 60 * 1000, // 15 minutes
+      // ✅ Kirim accessToken di body + user
+      res.status(200).json({
+        status: 'success',
+        data: {
+          user: data.user,
+          accessToken: data.accessToken,
+        }
       });
-
-      // Do not return tokens in JSON body to avoid encouraging client-side storage.
-      res.status(200).json({ status: 'success', data: { user: data.user } });
     } catch (error: any) {
       if (error.message === 'Invalid credentials') {
         res.status(401).json({ status: 'fail', message: error.message });
@@ -77,12 +92,12 @@ export class AuthController {
 
   refreshToken = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const token = this.getCookie(req, 'refreshToken') || req.body.refreshToken;
+      const token = req.cookies?.refreshToken || req.body.refreshToken;
       if (!token) {
         res.status(401).json({ status: 'fail', message: 'Refresh token is required' });
         return;
       }
-      const data = await this.authService.refreshToken(token);
+      const data = await this.authService.refreshToken(token) as RefreshData; // ✅ Type assertion
       
       const isProd = process.env.NODE_ENV === 'production';
 
@@ -93,15 +108,14 @@ export class AuthController {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      res.cookie('accessToken', data.accessToken, {
-        httpOnly: true,
-        secure: isProd,
-        sameSite: 'lax',
-        maxAge: 15 * 60 * 1000,
+      // ✅ Kirim accessToken di body
+      res.status(200).json({
+        status: 'success',
+        data: {
+          user: data.user,
+          accessToken: data.accessToken,
+        }
       });
-
-      // Return only user object; tokens are set as HttpOnly cookies.
-      res.status(200).json({ status: 'success', data: { user: data.user } });
     } catch (error: any) {
       if (error.message === 'Invalid refresh token') {
         res.status(401).json({ status: 'fail', message: error.message });
@@ -114,7 +128,7 @@ export class AuthController {
   forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
       await this.authService.forgotPassword(req.body.email);
-      res.status(200).json({ status: 'success', message: 'Password reset email sent (check console for token)' });
+      res.status(200).json({ status: 'success', message: 'Password reset email sent' });
     } catch (error) {
       next(error);
     }
