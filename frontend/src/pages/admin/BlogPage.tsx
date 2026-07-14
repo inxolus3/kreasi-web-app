@@ -1,5 +1,11 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState, useEffect } from 'react';
 import { blogClient } from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   FileText,
   Plus,
@@ -10,18 +16,23 @@ import {
   X,
   AlertCircle,
   Check,
-  Award
+  Award,
+  Link as LinkIcon
 } from 'lucide-react';
 
 interface BlogPost {
   id: number;
   title: string;
-  slug?: string;
+  slug: string;
   content: string;
   thumbnail?: string;
+  gallery?: string[];
   status: 'DRAFT' | 'PUBLISHED';
   featured: boolean;
   categoryId: number;
+  authorId: number;
+  metaTitle?: string;
+  metaDescription?: string;
   createdAt: string;
   category?: {
     id: number;
@@ -31,6 +42,7 @@ interface BlogPost {
 }
 
 export const BlogPage: React.FC = () => {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<BlogPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,10 +58,15 @@ export const BlogPage: React.FC = () => {
   // Form States
   const [formData, setFormData] = useState<Partial<BlogPost>>({
     title: '',
+    slug: '',
     content: '',
     status: 'DRAFT',
     featured: false,
     categoryId: 1,
+    thumbnail: '',
+    gallery: [],
+    metaTitle: '',
+    metaDescription: '',
   });
 
   const categories = [
@@ -62,47 +79,16 @@ export const BlogPage: React.FC = () => {
   const fetchPosts = async () => {
     setIsLoading(true);
     try {
-      const response = await blogClient.get('/posts', { params: { status: '' } });
+      const response = await blogClient.get('/posts');
       const data = response.data?.data || response.data || [];
       setPosts(data);
       setFilteredPosts(data);
-    } catch (err) {
-      console.error('Failed to fetch posts:', err);
-      // Fallback elegant mock data in case dev database is offline
-      const mockPosts: BlogPost[] = [
-        {
-          id: 1,
-          title: 'Cara Memilih Lokasi Billboard yang Paling Efektif',
-          content: 'Memilih lokasi baliho atau papan reklame sangat menentukan tingkat konversi atau impresi iklan luar ruang Anda. Ada 5 faktor utama yang perlu diperhatikan seperti volume lalu lintas harian, kecepatan kendaraan, sudut pandang jalan, rintangan fisik pohon/tiang listrik, dan relevansi lokasi dengan demografi target pasar Anda...',
-          status: 'PUBLISHED',
-          featured: true,
-          categoryId: 1,
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          category: { id: 1, name: 'Tips & Edukasi', slug: 'tips-edukasi' },
-        },
-        {
-          id: 2,
-          title: 'Tren Digital Out-of-Home (DOOH) di Indonesia Tahun 2026',
-          content: 'Seiring majunya teknologi layar LED dan integrasi data telemetri, iklan luar ruang beralih menjadi interaktif dan dinamis. Artikel ini mengulas perkembangan DOOH di berbagai kota besar di Indonesia, bagaimana programmatic DOOH bekerja, serta mengapa brand besar mulai mendominasi penayangan iklan LED interaktif...',
-          status: 'PUBLISHED',
-          featured: false,
-          categoryId: 3,
-          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          category: { id: 3, name: 'Tren Iklan', slug: 'tren-iklan' },
-        },
-        {
-          id: 3,
-          title: 'Pentingnya Iklan Luar Ruang Terhadap Brand Awareness',
-          content: 'Walaupun pemasaran digital melalui sosial media sangat gencar, media luar ruang (OOH) tetap menjadi jangkar utama dalam membangun kepercayaan dan kredibilitas di dunia fisik. Iklan luar ruang melengkapi branding digital dengan jangkauan massal dan kehadiran fisik yang kokoh...',
-          status: 'DRAFT',
-          featured: false,
-          categoryId: 1,
-          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          category: { id: 1, name: 'Tips & Edukasi', slug: 'tips-edukasi' },
-        },
-      ];
-      setPosts(mockPosts);
-      setFilteredPosts(mockPosts);
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Gagal memuat artikel';
+      console.error(`[Blog] ${message}`);
+      triggerAlert('error', message);
+      setPosts([]);
+      setFilteredPosts([]);
     } finally {
       setIsLoading(false);
     }
@@ -131,21 +117,37 @@ export const BlogPage: React.FC = () => {
     setFilteredPosts(result);
   }, [searchTerm, statusFilter, posts]);
 
+  const generateSlug = (title: string): string => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .substring(0, 50);
+  };
+
   const handleOpenAdd = () => {
     setCurrentPost(null);
     setFormData({
       title: '',
+      slug: '',
       content: '',
       status: 'DRAFT',
       featured: false,
       categoryId: 1,
+      thumbnail: '',
+      gallery: [],
+      metaTitle: '',
+      metaDescription: '',
     });
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (post: BlogPost) => {
     setCurrentPost(post);
-    setFormData({ ...post });
+    setFormData({
+      ...post,
+      gallery: post.gallery || [],
+    });
     setIsModalOpen(true);
   };
 
@@ -156,10 +158,20 @@ export const BlogPage: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'categoryId' ? parseInt(value, 10) : value,
-    }));
+    
+    if (name === 'title' && !currentPost) {
+      const newSlug = generateSlug(value);
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        slug: newSlug,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: name === 'categoryId' ? parseInt(value, 10) : value,
+      }));
+    }
   };
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,64 +182,70 @@ export const BlogPage: React.FC = () => {
     }));
   };
 
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const urls = e.target.value.split('\n').filter(s => s.trim() !== '');
+    setFormData((prev) => ({
+      ...prev,
+      gallery: urls,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedCat = categories.find((c) => c.id === formData.categoryId);
-    const categoryObj = selectedCat ? { id: selectedCat.id, name: selectedCat.name, slug: selectedCat.name.toLowerCase().replace(/\s+/g, '-') } : undefined;
+    
+    if (!user?.id) {
+      triggerAlert('error', 'Anda harus login untuk membuat artikel');
+      return;
+    }
+
+    // ✅ Filter valid URLs only
+    const validGallery = (formData.gallery || []).filter((url: string) => 
+      url && url.trim() !== '' && url.startsWith('http')
+    );
+
+    const payload = {
+      title: formData.title,
+      slug: formData.slug || generateSlug(formData.title || ''),
+      content: formData.content,
+      status: formData.status,
+      featured: formData.featured,
+      categoryId: formData.categoryId,
+      authorId: user.id,
+      thumbnail: formData.thumbnail && formData.thumbnail.trim() !== '' && formData.thumbnail.startsWith('http')
+        ? formData.thumbnail 
+        : null,
+      gallery: validGallery.length > 0 ? validGallery : [],
+      metaTitle: formData.metaTitle || null,
+      metaDescription: formData.metaDescription || null,
+    };
+
+    console.log('Payload:', payload);
 
     try {
       if (currentPost) {
-        // Edit flow
-        try {
-          await blogClient.put(`/posts/${currentPost.id}`, formData);
-        } catch {
-          // Fallback to local state if server block/missing database tables
-        }
-        setPosts((prev) =>
-          prev.map((p) =>
-            p.id === currentPost.id
-              ? ({ ...p, ...formData, category: categoryObj } as BlogPost)
-              : p
-          )
-        );
+        await blogClient.put(`/posts/${currentPost.id}`, payload);
         triggerAlert('success', `Artikel "${formData.title}" berhasil diperbarui.`);
       } else {
-        // Create flow
-        const newId = posts.length > 0 ? Math.max(...posts.map((p) => p.id)) + 1 : 1;
-        const newPost = {
-          id: newId,
-          createdAt: new Date().toISOString(),
-          category: categoryObj,
-          ...formData,
-        } as BlogPost;
-
-        try {
-          await blogClient.post('/posts', formData);
-        } catch {
-          // Fallback
-        }
-        setPosts((prev) => [newPost, ...prev]);
+        await blogClient.post('/posts', payload);
         triggerAlert('success', `Artikel "${formData.title}" berhasil ditambahkan.`);
       }
+      await fetchPosts();
       setIsModalOpen(false);
     } catch (err: any) {
-      triggerAlert('error', `Gagal menyimpan: ${err.message || 'Error tidak diketahui'}`);
+      const message = err.response?.data?.message || err.message || 'Gagal menyimpan';
+      triggerAlert('error', message);
     }
   };
 
   const handleDelete = async () => {
     if (!currentPost) return;
     try {
-      try {
-        await blogClient.delete(`/posts/${currentPost.id}`);
-      } catch {
-        // Fallback
-      }
+      await blogClient.delete(`/posts/${currentPost.id}`);
       setPosts((prev) => prev.filter((p) => p.id !== currentPost.id));
       triggerAlert('success', `Artikel "${currentPost.title}" berhasil dihapus.`);
       setIsDeleteOpen(false);
     } catch (err: any) {
-      triggerAlert('error', `Gagal menghapus: ${err.message || 'Error tidak diketahui'}`);
+      triggerAlert('error', err.response?.data?.message || err.message || 'Gagal menghapus');
     }
   };
 
@@ -424,8 +442,11 @@ export const BlogPage: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               <div className="space-y-4">
+                {/* Title */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Judul Artikel</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Judul Artikel
+                  </label>
                   <input
                     type="text"
                     name="title"
@@ -435,6 +456,29 @@ export const BlogPage: React.FC = () => {
                     required
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
+                </div>
+
+                {/* Slug */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Slug URL
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-500">
+                      <LinkIcon className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      name="slug"
+                      value={formData.slug || ''}
+                      onChange={handleInputChange}
+                      placeholder="auto-generated-dari-judul"
+                      className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                    />
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    {currentPost ? 'Slug tidak bisa diubah setelah dibuat' : 'Biarkan kosong untuk generate otomatis dari judul'}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -478,6 +522,33 @@ export const BlogPage: React.FC = () => {
                     rows={10}
                     required
                     className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm leading-relaxed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Thumbnail URL (harus dimulai dengan http:// atau https://)
+                  </label>
+                  <input
+                    type="text"
+                    name="thumbnail"
+                    value={formData.thumbnail || ''}
+                    onChange={handleInputChange}
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Gallery URLs (satu per baris, harus dimulai dengan http:// atau https://)
+                  </label>
+                  <textarea
+                    value={(formData.gallery || []).join('\n')}
+                    onChange={handleGalleryChange}
+                    placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+                    rows={3}
+                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
                 </div>
 

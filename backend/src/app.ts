@@ -41,6 +41,9 @@ import uploadRouter from './modules/upload/upload.routes';
 import settingRouter from './modules/settings/setting.routes';
 import pagesRouter from './modules/pages/pages.routes';
 import adminRouter from './routes/admin';
+import usersRouter from './routes/users';
+import categoriesRouter from './routes/categories';
+import tagsRouter from './routes/tags';
 import sitemapRouter from './routes/sitemap';
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger';
@@ -186,7 +189,12 @@ app.use('/api/v1', uploadRouter);
 app.use('/api/v1', settingRouter);
 app.use('/api/v1', pagesRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/categories', categoriesRouter);
+app.use('/api/v1/tags', tagsRouter);
+app.use('/api/v1/pages', pagesRouter);
 app.use('/', sitemapRouter);
+
 
 // Sentry error handler (HARUS setelah semua route, sebelum generic error handler)
 if (env.SENTRY_DSN) {

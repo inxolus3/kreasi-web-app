@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig } from 'vite';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 export default defineConfig(() => {
@@ -15,11 +15,13 @@ export default defineConfig(() => {
         authToken: process.env.SENTRY_AUTH_TOKEN,
       }) : null,
     ].filter(Boolean),
+    
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, './src'),  // ← FIX: arahkan ke src, bukan root
       },
     },
+    
     build: {
       target: 'es2020',
       minify: 'terser',
@@ -43,11 +45,21 @@ export default defineConfig(() => {
         },
       },
     },
+    
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      port: 5173,
+      
+      // ✅ TAMBAHKAN: Proxy ke backend
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+          // Tidak perlu rewrite — pertahankan /api prefix
+        },
+      },
+      
+      // HMR config (jangan diubah)
       hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };
