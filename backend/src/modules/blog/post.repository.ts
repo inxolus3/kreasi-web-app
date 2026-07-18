@@ -1,97 +1,67 @@
-import prisma from '../../utils/prisma';
-import { Prisma } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export class PostRepository {
-  async create(data: any): Promise<any> {
-    // Transform flat IDs ke Prisma relation format
-    const { authorId, categoryId, ...rest } = data;
-    
-    const createData: Prisma.PostCreateInput = {
-      ...rest,
-      author: { connect: { id: authorId } },
-      category: categoryId ? { connect: { id: categoryId } } : undefined,
-    };
+  async findAll(query: any) {
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const limit = Math.min(100, parseInt(query.limit, 10) || 10);
+    const skip = (page - 1) * limit;
 
-    return prisma.post.create({
-      data: createData,
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+    const where: Prisma.PostWhereInput = {};
+
+    if (query.search) {
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { content: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+    if (query.status) {
+      where.status = query.status;
+    }
+    if (query.categoryId) {
+      where.categoryId = parseInt(query.categoryId, 10);
+    }
+    if (query.featured !== undefined) {
+      where.featured = query.featured === 'true' || query.featured === true;
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          category: true,
+          author: { select: { id: true, username: true, role: true } },
         },
-        category: true,
-        tags: true,
-      },
-    });
+      }),
+      prisma.post.count({ where }),
+    ]);
+
+    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
-  async update(id: number, data: any): Promise<any> {
-    const { authorId, categoryId, ...rest } = data;
-    
-    const updateData: Prisma.PostUpdateInput = {
-      ...rest,
-      author: authorId ? { connect: { id: authorId } } : undefined,
-      category: categoryId ? { connect: { id: categoryId } } : undefined,
-    };
-
-    return prisma.post.update({
-      where: { id },
-      data: updateData,
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        tags: true,
-      },
-    });
-  }
-
-  async findAll(query: any = {}): Promise<any[]> {
-    return prisma.post.findMany({
-      where: query,
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        tags: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async findById(id: number): Promise<any | null> {
+  async findById(id: number) {
     return prisma.post.findUnique({
       where: { id },
       include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
         category: true,
-        tags: true,
+        author: { select: { id: true, username: true, role: true } },
       },
     });
   }
 
-  async delete(id: number): Promise<any> {
-    return prisma.post.delete({
-      where: { id },
-    });
+  async create(data: Prisma.PostCreateInput) {
+    return prisma.post.create({ data });
+  }
+
+  async update(id: number, data: Prisma.PostUpdateInput) {
+    return prisma.post.update({ where: { id }, data });
+  }
+
+  async delete(id: number) {
+    return prisma.post.delete({ where: { id } });
   }
 }

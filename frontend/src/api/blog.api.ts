@@ -47,6 +47,33 @@ export interface SingleBlogResponse {
   data: BlogPost;
 }
 
+export interface CreateBlogPayload {
+  title: string;
+  slug: string;
+  content: string;
+  status: 'DRAFT' | 'PUBLISHED';
+  featured: boolean;
+  categoryId: number;
+  authorId: number;
+  thumbnail?: string | null;
+  gallery?: string[];
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+}
+
+export interface UpdateBlogPayload {
+  title?: string;
+  slug?: string;
+  content?: string;
+  status?: 'DRAFT' | 'PUBLISHED';
+  featured?: boolean;
+  categoryId?: number;
+  thumbnail?: string | null;
+  gallery?: string[];
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+}
+
 export const blogApi = {
   getPosts: async (params?: {
     search?: string;
@@ -57,7 +84,6 @@ export const blogApi = {
     page?: number;
     limit?: number;
   }): Promise<BlogResponse> => {
-    // Map status: we usually only want PUBLISHED posts on the public blog
     const queryParams = { status: 'PUBLISHED', ...params };
     const response = await blogClient.get('/posts', { params: queryParams });
     return response.data;
@@ -65,6 +91,24 @@ export const blogApi = {
 
   getPostBySlug: async (slug: string): Promise<SingleBlogResponse> => {
     const response = await blogClient.get(`/posts/slug/${slug}`);
+    return response.data;
+  },
+
+  // ✅ FIX: Tambahin createPost
+  createPost: async (payload: CreateBlogPayload): Promise<SingleBlogResponse> => {
+    const response = await blogClient.post('/posts', payload);
+    return response.data;
+  },
+
+  // ✅ FIX: Tambahin updatePost (PATCH)
+  updatePost: async (id: number, payload: UpdateBlogPayload): Promise<SingleBlogResponse> => {
+    const response = await blogClient.patch(`/posts/${id}`, payload);
+    return response.data;
+  },
+
+  // ✅ FIX: Tambahin deletePost
+  deletePost: async (id: number): Promise<{ status: string; message: string }> => {
+    const response = await blogClient.delete(`/posts/${id}`);
     return response.data;
   },
 };

@@ -34,14 +34,19 @@ export class SettingRepository {
     });
   }
 
+  // ✅ FIX: pakai $transaction — 1 connection, atomic
   async upsertMany(settings: { key: string; value: string; group: string }[]): Promise<Setting[]> {
-    const promises = settings.map((s) =>
-      prisma.setting.upsert({
-        where: { key: s.key },
-        update: { value: s.value, group: s.group },
-        create: { key: s.key, value: s.value, group: s.group },
-      })
+    return prisma.$transaction(
+      settings.map((s) =>
+        prisma.setting.upsert({
+          where: { key: s.key },
+          update: { value: s.value, group: s.group },
+          create: { key: s.key, value: s.value, group: s.group },
+        })
+      ),
+      {
+        isolationLevel: 'Serializable', // opsional, lebih aman
+      }
     );
-    return Promise.all(promises);
   }
 }
