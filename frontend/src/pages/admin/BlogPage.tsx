@@ -80,7 +80,7 @@ export const BlogPage: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await blogClient.get('/posts');
-      const data = response.data?.data || response.data || [];
+      const data = response.data?.data?.data || response.data?.data || [];
       setPosts(data);
       setFilteredPosts(data);
     } catch (err: any) {
@@ -198,7 +198,6 @@ export const BlogPage: React.FC = () => {
       return;
     }
 
-    // ✅ Filter valid URLs only
     const validGallery = (formData.gallery || []).filter((url: string) => 
       url && url.trim() !== '' && url.startsWith('http')
     );
@@ -223,7 +222,8 @@ export const BlogPage: React.FC = () => {
 
     try {
       if (currentPost) {
-        await blogClient.put(`/posts/${currentPost.id}`, payload);
+        // ✅ FIX: PUT → PATCH
+        await blogClient.patch(`/posts/${currentPost.id}`, payload);
         triggerAlert('success', `Artikel "${formData.title}" berhasil diperbarui.`);
       } else {
         await blogClient.post('/posts', payload);

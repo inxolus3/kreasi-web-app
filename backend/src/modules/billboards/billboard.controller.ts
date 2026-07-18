@@ -55,8 +55,6 @@ export class BillboardController {
         description: billboard.description,
         gallery: billboard.gallery,
         traffic: billboard.traffic,
-        availableFrom: billboard.availableFrom,
-        availableUntil: billboard.availableUntil,
         createdAt: billboard.createdAt,
         updatedAt: billboard.updatedAt,
       };

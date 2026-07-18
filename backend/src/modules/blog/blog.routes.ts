@@ -13,16 +13,50 @@ import {
 import {
   createPostSchema,
   updatePostSchema,
-  getPostsQuerySchema
+  getPostsQuerySchema,
+  idParamSchema, // ← tambahkan ini di blog.validation.ts
 } from './blog.validation';
 
 const router = Router();
 
-// Posts
-router.post('/posts', authenticate, authorize(['ADMIN', 'USER']), validate(createPostSchema), auditLog('CREATE_POST'), createPost);
-router.get('/posts', validate(getPostsQuerySchema), getPosts);
-router.get('/posts/:id', getPost);
-router.patch('/posts/:id', authenticate, authorize(['ADMIN', 'USER']), validate(updatePostSchema), auditLog('UPDATE_POST'), updatePost);
-router.delete('/posts/:id', authenticate, authorize(['ADMIN', 'USER']), auditLog('DELETE_POST'), deletePost);
+router.post(
+  '/posts',
+  authenticate,
+  authorize(['ADMIN', 'USER']),
+  validate(createPostSchema),
+  auditLog('CREATE_POST'),
+  createPost
+);
+
+router.get(
+  '/posts',
+  validate(getPostsQuerySchema),
+  getPosts
+);
+
+router.get(
+  '/posts/:id',
+  validate(idParamSchema),
+  getPost
+);
+
+router.patch(
+  '/posts/:id',
+  authenticate,
+  authorize(['ADMIN', 'USER']),
+  validate(idParamSchema),
+  validate(updatePostSchema),
+  auditLog('UPDATE_POST'),
+  updatePost
+);
+
+router.delete(
+  '/posts/:id',
+  authenticate,
+  authorize(['ADMIN', 'USER']),
+  validate(idParamSchema),
+  auditLog('DELETE_POST'),
+  deletePost
+);
 
 export default router;
