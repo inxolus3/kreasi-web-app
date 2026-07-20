@@ -26,10 +26,30 @@ const handleServiceError = (error: unknown, res: Response): boolean => {
   return false;
 };
 
+const getImageUrl = (image: { id: number } | null | undefined): string | null => {
+  if (!image) return null;
+  return `/api/v1/images/${image.id}`;
+};
+
+const formatPost = (post: any) => ({
+  ...post,
+  thumbnailId: post.thumbnail?.id ?? null,
+  galleryImageIds: Array.isArray(post.gallery)
+    ? post.gallery.map((image: any) => image.id)
+    : [],
+  thumbnail: getImageUrl(post.thumbnail),
+  gallery: Array.isArray(post.gallery)
+    ? post.gallery
+        .map((image: any) => getImageUrl(image))
+        .filter((url: string | null) => url !== null)
+    : [],
+});
+
 export const getPosts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const posts = await postRepository.findAll(req.query);
-    res.json({ status: 'success', data: posts });
+    const formattedData = Array.isArray(posts.data) ? posts.data.map(formatPost) : [];
+    res.json({ status: 'success', data: formattedData, meta: posts.meta });
   } catch (error) {
     if (!handleServiceError(error, res)) next(error);
   }
@@ -42,7 +62,20 @@ export const getPost = async (req: Request, res: Response, next: NextFunction) =
       res.status(404).json({ status: 'fail', message: 'Post not found' });
       return;
     }
-    res.json({ status: 'success', data: post });
+    res.json({ status: 'success', data: formatPost(post) });
+  } catch (error) {
+    if (!handleServiceError(error, res)) next(error);
+  }
+};
+
+export const getPostBySlug = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const post = await postRepository.findBySlug(req.params.slug);
+    if (!post) {
+      res.status(404).json({ status: 'fail', message: 'Post not found' });
+      return;
+    }
+    res.json({ status: 'success', data: formatPost(post) });
   } catch (error) {
     if (!handleServiceError(error, res)) next(error);
   }
@@ -50,13 +83,33 @@ export const getPost = async (req: Request, res: Response, next: NextFunction) =
 
 export const createPost = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ status: 'fail', message: 'Unauthorized' });
       return;
     }
-    const post = await postRepository.create({ ...req.body, authorId: userId });
-    res.status(201).json({ status: 'success', data: post });
+
+    const { thumbnailImageId, galleryImageIds, tagIds, categoryId, authorId: _authorId, ...payload } = req.body;
+    const createData: any = {
+      ...payload,
+      author: { connect: { id: userId } },
+      category: { connect: { id: categoryId } },
+    };
+
+    if (tagIds && Array.isArray(tagIds) && tagIds.length > 0) {
+      createData.tags = { connect: tagIds.map((id: number) => ({ id })) };
+    }
+
+    if (thumbnailImageId) {
+      createData.thumbnail = { connect: { id: thumbnailImageId } };
+    }
+
+    if (galleryImageIds && Array.isArray(galleryImageIds) && galleryImageIds.length > 0) {
+      createData.gallery = { connect: galleryImageIds.map((id: number) => ({ id })) };
+    }
+
+    const post = await postRepository.create(createData);
+    res.status(201).json({ status: 'success', data: formatPost(post) });
   } catch (error) {
     if (!handleServiceError(error, res)) next(error);
   }
@@ -64,8 +117,29 @@ export const createPost = async (req: Request, res: Response, next: NextFunction
 
 export const updatePost = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const post = await postRepository.update(Number(req.params.id), req.body);
-    res.json({ status: 'success', data: post });
+    const { thumbnailImageId, galleryImageIds, tagIds, categoryId, authorId: _authorId, ...payload } = req.body;
+    const updateData: any = { ...payload };
+
+    if (categoryId) {
+      updateData.category = { connect: { id: categoryId } };
+    }
+
+    if (tagIds) {
+      updateData.tags = { set: tagIds.map((id: number) => ({ id })) };
+    }
+
+    if (thumbnailImageId !== undefined) {
+      updateData.thumbnail = thumbnailImageId
+        ? { connect: { id: thumbnailImageId } }
+        : { disconnect: true };
+    }
+
+    if (galleryImageIds) {
+      updateData.gallery = { set: galleryImageIds.map((id: number) => ({ id })) };
+    }
+
+    const post = await postRepository.update(Number(req.params.id), updateData);
+    res.json({ status: 'success', data: formatPost(post) });
   } catch (error) {
     if (!handleServiceError(error, res)) next(error);
   }

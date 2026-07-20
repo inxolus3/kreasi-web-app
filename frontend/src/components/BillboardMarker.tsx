@@ -48,7 +48,7 @@ export default function BillboardMarker({ billboard, isSelected, onSelect }: Bil
     if (isSelected && markerRef.current) {
       markerRef.current.openPopup();
       // Center the map view on the selected marker
-      const map = markerRef.current._map;
+      const map = (markerRef.current as L.Marker & { _map?: L.Map })._map;
       if (map) {
         map.setView([billboard.latitude, billboard.longitude], 15, {
           animate: true,

@@ -7,15 +7,15 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster';
-import { Billboard } from '../types';
+import { Billboard, BillboardMarker } from '../types';
 import { MapPin, Maximize2, Lightbulb, Navigation, Eye, X, Compass, CheckCircle, ChevronRight, ImageIcon, MessageSquare} from 'lucide-react';
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 
 interface BillboardMapProps {
-  billboards: Billboard[];
+  billboards: BillboardMarker[];
   selectedBillboard: Billboard | null;
-  onSelectBillboard: (billboard: Billboard | null) => void;
+  onSelectBillboard: (billboard: BillboardMarker | null) => void;
   isDarkMode: boolean;
   center?: [number, number];
   zoom?: number;
@@ -51,9 +51,9 @@ function MapViewController({
   selectedBillboard,
   onSelectBillboard
 }: {
-  billboards: Billboard[];
+  billboards: BillboardMarker[];
   selectedBillboard: Billboard | null;
-  onSelectBillboard: (billboard: Billboard | null) => void;
+  onSelectBillboard: (billboard: BillboardMarker | null) => void;
 }) {
   const map = useMap();
   const prevBillboardsRef = useRef<string>('');
@@ -92,9 +92,9 @@ function ClusteredMarkers({
   selectedBillboard,
   onSelect
 }: {
-  billboards: Billboard[];
+  billboards: BillboardMarker[];
   selectedBillboard: Billboard | null;
-  onSelect: (billboard: Billboard) => void;
+  onSelect: (billboard: BillboardMarker) => void;
 }) {
   const map = useMap();
   const clusterGroupRef = useRef<any>(null);

@@ -4,38 +4,25 @@
  */
 
 import { apiV1Client } from './client';
+import type { SettingsResponse, SettingsData, UpdateSettingsPayload } from './types/settings';
+import { updateSettingsSchema } from './schemas/settings.schema';
 
-export interface SettingsData {
-  siteName: string;
-  siteDescription: string;
-  siteLogo: string;
-  siteFavicon: string;
-  metaTitle: string;
-  metaDescription: string;
-  metaKeywords: string;
-  googleAnalyticsId: string;
-  googleTagManagerId: string;
-  contactEmail: string;
-  contactPhone: string;
-  contactWhatsapp: string;
-  socialFacebook: string;
-  socialInstagram: string;
-  socialTwitter: string;
-  officeAddress: string;
-  officeMapIframe: string;
-  footerCopyright: string;
-  footerDisclaimer: string;
-  maintenanceMode: string;
-}
-
-export interface SettingsResponse {
-  status: string;
-  data: SettingsData;
-}
+export type { SettingsData, UpdateSettingsPayload } from './types/settings';
 
 export const settingsApi = {
   getSettings: async (): Promise<SettingsResponse> => {
-    const response = await apiV1Client.get('/public/settings');
+    const response = await apiV1Client.get<SettingsResponse>('/public/settings');
+    return response.data;
+  },
+
+  getSettingsByGroup: async (group: string): Promise<SettingsResponse> => {
+    const response = await apiV1Client.get<SettingsResponse>(`/public/settings/${group}`);
+    return response.data;
+  },
+
+  updateSettings: async (payload: UpdateSettingsPayload): Promise<SettingsResponse> => {
+    updateSettingsSchema.parse(payload);
+    const response = await apiV1Client.patch<SettingsResponse>('/admin/settings', payload);
     return response.data;
   },
 };

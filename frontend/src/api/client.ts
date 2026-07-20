@@ -61,11 +61,14 @@ const safeLogError = (prefix: string, error: AxiosError | any) => {
   console.error(`[${prefix}] ${message}`);
 };
 
-// ✅ TAMBAHKAN: Request Interceptor untuk Bearer Token
+const getAuthToken = () => {
+  return localStorage.getItem('accessToken') ?? localStorage.getItem('token') ?? undefined;
+};
+
 const addAuthToken = (config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem('accessToken');
+  const token = getAuthToken();
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.set('Authorization', `Bearer ${token}`);
   }
   return config;
 };

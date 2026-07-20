@@ -16,9 +16,6 @@ import { BillboardsPage } from './pages/admin/BillboardsPage';
 import { BlogPage } from './pages/admin/BlogPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { UsersPage } from './pages/admin/UsersPage';
-import { PagesPage } from './pages/admin/PagesPage';
-import { PageBuilder } from './pages/admin/PageBuilder';
-
 // Error Boundary (tetap pakai untuk safety)
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -81,18 +78,6 @@ export const AppRouter: React.FC = () => {
       {/* Admin Login */}
       <Route path="/admin/login" element={<LoginPage />} />
 
-      {/* Page Builder */}
-      <Route
-        path="/admin/pages/:id/builder"
-        element={
-          <ProtectedRoute>
-            <PageErrorBoundary>
-              <PageBuilder />
-            </PageErrorBoundary>
-          </ProtectedRoute>
-        }
-      />
-
       {/* Protected Admin */}
       <Route
         path="/admin"
@@ -105,9 +90,6 @@ export const AppRouter: React.FC = () => {
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={
           <PageErrorBoundary><DashboardPage /></PageErrorBoundary>
-        } />
-        <Route path="pages" element={
-          <PageErrorBoundary><PagesPage /></PageErrorBoundary>
         } />
         <Route path="billboards" element={
           <PageErrorBoundary><BillboardsPage /></PageErrorBoundary>

@@ -6,8 +6,10 @@ import path from 'path';
 import fs from 'fs';
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import { env } from './config/env';
+import { verifyToken } from './utils/jwt.util';
 
 // Initialize Sentry before any middleware or route definitions
 if (env.SENTRY_DSN) {
@@ -30,12 +32,12 @@ import metricsRouter from './routes/metrics';
 import { errorHandler } from './middlewares/errorHandler';
 import { requestLogger } from './utils/logger';
 import { apiLimiter } from './middlewares/rateLimiter';
-import { verifyToken } from './utils/jwt.util';
 import { sanitizeResponseMiddleware } from './middlewares/sanitizeResponse';
 
 import authRouter from './modules/auth/auth.routes';
 import blogRouter from './modules/blog/blog.routes';
 import billboardRouter from './modules/billboards/billboard.routes';
+import imageRouter from './modules/images/image.routes';
 import uploadRouter from './modules/upload/upload.routes';
 import settingRouter from './modules/settings/setting.routes';
 import pagesRouter from './modules/pages/pages.routes';
@@ -77,6 +79,9 @@ app.use(
     },
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
+    frameguard: { action: 'deny' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    hsts: env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : undefined,
   })
 );
 
@@ -84,15 +89,21 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Allow non-browser requests (e.g., curl, server-to-server)
       if (!origin) return callback(null, true);
-      const allowedOrigins = env.FRONTEND_URL === '*' 
-        ? (env.NODE_ENV === 'production' ? [] : '*') 
-        : env.FRONTEND_URL.split(',');
-      if (allowedOrigins === '*') return callback(null, true);
-      if (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
-        return callback(null, true);
+
+      const allowed = (env as any).ALLOWED_ORIGINS_ARRAY || [];
+
+      if (env.NODE_ENV === 'production') {
+        if (!allowed || allowed.length === 0) return callback(new Error('CORS not configured'));
+        if (allowed.includes(origin)) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'));
       }
-      callback(new Error('Not allowed by CORS'));
+
+      // In development allow common localhost origins plus any configured ones
+      const devAllowed = new Set([...(allowed || []), 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000']);
+      if (devAllowed.has(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -103,6 +114,9 @@ app.use(
 app.use(compression({ level: 6, threshold: 1024 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// cookie-parser is required for cookie-based authentication
+// (refreshToken HttpOnly cookie + accessToken cookie fallback in auth middleware).
+app.use(cookieParser());
 app.use(sanitizeResponseMiddleware);
 
 // Uploads route with auth
@@ -152,19 +166,21 @@ app.get('/uploads/*', (req, res) => {
 });
 
 app.use(requestLogger);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
+// Swagger UI only in non-production
+if (env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+}
 
 // ✅ ALL API ROUTES — PASTIKAN TIDAK ADA YANG HILANG
-app.use('/api', apiLimiter);
 app.use('/api/health', healthRouter);
 app.use('/api/diagnostics', diagnosticsRouter);
 app.use('/api/metrics', metricsRouter);
 app.use('/api/auth', authRouter);
-app.use('/api/blog', blogRouter);
-app.use('/api/v1', billboardRouter);
+app.use('/api/blog', blogRouter);app.use('/api/v1/images', imageRouter);app.use('/api/v1', billboardRouter);
 app.use('/api/v1', uploadRouter);
 app.use('/api/v1', settingRouter);
-app.use('/api/v1', pagesRouter);           // /api/v1/pages/...
+app.use('/api/v1', pagesRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/categories', categoriesRouter);

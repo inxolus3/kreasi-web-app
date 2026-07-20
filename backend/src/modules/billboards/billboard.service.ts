@@ -1,11 +1,11 @@
-import { BillboardRepository } from './billboard.repository';
+import { BillboardRepository, BillboardWithImages } from './billboard.repository';
 import { Prisma, Billboard } from '@prisma/client';
 import { AppError } from '../../errors/AppError';
 
 export class BillboardService {
   constructor(private readonly billboardRepository: BillboardRepository) {}
 
-  async createBillboard(data: Prisma.BillboardCreateInput): Promise<Billboard> {
+  async createBillboard(data: Prisma.BillboardCreateInput): Promise<BillboardWithImages> {
     const existingCode = await this.billboardRepository.findByCode(data.code as string);
     if (existingCode) {
       throw new AppError('Billboard with this code already exists', 409);
@@ -16,10 +16,28 @@ export class BillboardService {
       throw new AppError('Billboard with this slug already exists', 409);
     }
 
-    return this.billboardRepository.create(data);
+    const { thumbnailImageId, galleryImageIds, ...payload } = data as unknown as {
+      thumbnailImageId?: number | null;
+      galleryImageIds?: number[];
+      [key: string]: unknown;
+    };
+
+    const createData: Prisma.BillboardCreateInput = {
+      ...payload,
+    } as Prisma.BillboardCreateInput;
+
+    if (thumbnailImageId) {
+      createData.thumbnail = { connect: { id: thumbnailImageId } };
+    }
+
+    if (galleryImageIds && galleryImageIds.length > 0) {
+      createData.gallery = { connect: galleryImageIds.map((id) => ({ id })) } as any;
+    }
+
+    return this.billboardRepository.create(createData);
   }
 
-  async getBillboards(query: Record<string, unknown>) {
+  async getBillboards(query: Record<string, unknown>): Promise<{ data: BillboardWithImages[]; meta: { total: number; page: number; limit: number; totalPages: number } }> {
     const page = parseInt(String(query.page ?? '1'), 10);
     const limit = parseInt(String(query.limit ?? '10'), 10);
     const skip = (page - 1) * limit;
@@ -62,26 +80,9 @@ export class BillboardService {
         take: limit,
         where,
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          slug: true,
-          province: true,
-          city: true,
-          district: true,
-          address: true,
-          latitude: true,
-          longitude: true,
-          size: true,
-          type: true,
-          orientation: true,
-          lighting: true,
+        include: {
           thumbnail: true,
           gallery: true,
-          description: true,
-          createdAt: true,
-          updatedAt: true,
         },
       }),
       this.billboardRepository.count(where),
@@ -98,7 +99,7 @@ export class BillboardService {
     };
   }
 
-  async getBillboardById(id: number): Promise<Billboard> {
+  async getBillboardById(id: number): Promise<BillboardWithImages> {
     const billboard = await this.billboardRepository.findById(id);
     if (!billboard) {
       throw new AppError('Billboard not found', 404);
@@ -106,7 +107,7 @@ export class BillboardService {
     return billboard;
   }
 
-  async getBillboardBySlug(slug: string): Promise<Billboard> {
+  async getBillboardBySlug(slug: string): Promise<BillboardWithImages> {
     const billboard = await this.billboardRepository.findBySlug(slug);
     if (!billboard) {
       throw new AppError('Billboard not found', 404);
@@ -114,7 +115,7 @@ export class BillboardService {
     return billboard;
   }
 
-  async updateBillboard(id: number, data: Prisma.BillboardUpdateInput): Promise<Billboard> {
+  async updateBillboard(id: number, data: Prisma.BillboardUpdateInput): Promise<BillboardWithImages> {
     const existing = await this.billboardRepository.findById(id);
     if (!existing) {
       throw new AppError('Billboard not found', 404);
@@ -134,16 +135,34 @@ export class BillboardService {
       }
     }
 
-    return this.billboardRepository.update(id, data);
+    const { thumbnailImageId, galleryImageIds, ...rest } = data as unknown as {
+      thumbnailImageId?: number | null;
+      galleryImageIds?: number[];
+      [key: string]: unknown;
+    };
+
+    const updateData: Prisma.BillboardUpdateInput = { ...rest };
+
+    if (thumbnailImageId !== undefined) {
+      updateData.thumbnail = thumbnailImageId
+        ? { connect: { id: thumbnailImageId } }
+        : { disconnect: true };
+    }
+
+    if (galleryImageIds) {
+      updateData.gallery = { set: galleryImageIds.map((id) => ({ id })) } as any;
+    }
+
+    return this.billboardRepository.update(id, updateData);
   }
 
-  async updateBillboardStatus(id: number, status: string): Promise<Billboard> {
+  async updateBillboardStatus(id: number, status: string): Promise<BillboardWithImages> {
     const existing = await this.billboardRepository.findById(id);
     if (!existing) {
       throw new AppError('Billboard not found', 404);
     }
 
-    return this.billboardRepository.update(id, { status });
+    return this.billboardRepository.update(id, { status } as any);
   }
 
   async deleteBillboard(id: number): Promise<Billboard> {

@@ -28,11 +28,6 @@ export const AdminLayout: React.FC = () => {
       icon: LayoutDashboard,
     },
     {
-      name: 'Pages',
-      path: '/admin/pages',
-      icon: Layers,
-    },
-    {
       name: 'Billboards',
       path: '/admin/billboards',
       icon: ImageIcon,

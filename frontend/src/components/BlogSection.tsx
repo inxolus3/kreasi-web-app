@@ -4,8 +4,8 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { blogApi, BlogPost } from '../api/blog.api';
+import { useBlogPosts, useBlogPostDetail } from '../api/hooks/useBlog';
+import type { BlogPost } from '../api/blog.api';
 import ErrorState from './ErrorState';
 import EmptyState from './EmptyState';
 import Skeleton, { BlogPostSkeleton } from './Skeleton';
@@ -28,10 +28,7 @@ export default function BlogSection() {
   };
 
   // TanStack Query to fetch posts
-  const { data: postsData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['blogPosts', debouncedSearch],
-    queryFn: () => blogApi.getPosts({ search: debouncedSearch || undefined }),
-  });
+  const { data: postsData, isLoading, isError, refetch } = useBlogPosts({ search: debouncedSearch || undefined });
 
   const posts = useMemo(() => postsData?.data || [], [postsData]);
 
@@ -51,11 +48,7 @@ export default function BlogSection() {
   }, [posts, selectedCategory]);
 
   // Fetch single post detail when slug is active
-  const { data: detailData, isLoading: isDetailLoading, isError: isDetailError, refetch: refetchDetail } = useQuery({
-    queryKey: ['blogPostDetail', selectedPostSlug],
-    queryFn: () => blogApi.getPostBySlug(selectedPostSlug!),
-    enabled: !!selectedPostSlug,
-  });
+  const { data: detailData, isLoading: isDetailLoading, isError: isDetailError, refetch: refetchDetail } = useBlogPostDetail(selectedPostSlug);
 
   const activePost = detailData?.data;
 
@@ -141,7 +134,7 @@ export default function BlogSection() {
                 {activePost.author && (
                   <span className="flex items-center gap-1">
                     <User className="w-3.5 h-3.5" />
-                    Oleh: {activePost.author.username}
+                    Oleh: {activePost.author.name ?? 'Admin'}
                   </span>
                 )}
               </div>
@@ -186,7 +179,7 @@ export default function BlogSection() {
 
             </article>
           ) : (
-            <EmptyState message="Artikel tidak ditemukan." />
+            <EmptyState description="Artikel tidak ditemukan." />
           )}
 
         </div>
@@ -278,13 +271,13 @@ export default function BlogSection() {
           </div>
         ) : filteredPosts.length === 0 ? (
           <EmptyState 
-            message="Belum ada artikel yang dipublikasikan dalam kategori atau pencarian ini." 
+            description="Belum ada artikel yang dipublikasikan dalam kategori atau pencarian ini." 
             onAction={debouncedSearch || selectedCategory !== 'ALL' ? () => {
               setSearchVal('');
               setDebouncedSearch('');
               setSelectedCategory('ALL');
             } : undefined}
-            actionLabel="Reset Pencarian"
+            actionText="Reset Pencarian"
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="posts-display-grid">
@@ -349,7 +342,7 @@ export default function BlogSection() {
                     </button>
                     {post.author && (
                       <span className="text-[10px] font-bold text-slate-400 dark:text-neutral-500">
-                        Oleh: {post.author.username}
+                        Oleh: {post.author.name ?? 'Admin'}
                       </span>
                     )}
                   </div>

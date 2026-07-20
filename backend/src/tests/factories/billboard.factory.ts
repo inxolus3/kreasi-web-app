@@ -1,0 +1,2 @@
+let sequence = 0;
+export const buildBillboard = (overrides: Record<string, unknown> = {}) => { sequence += 1; return { code: `TEST-${sequence}`, name: `Test Billboard ${sequence}`, slug: `test-billboard-${sequence}`, province: 'DKI Jakarta', city: 'Jakarta', district: 'Setiabudi', address: 'Jl. Test No. 1', latitude: -6.2, longitude: 106.8, size: '4x8m', type: 'Billboard', orientation: 'Portrait', lighting: 'Frontlight', ...overrides }; };

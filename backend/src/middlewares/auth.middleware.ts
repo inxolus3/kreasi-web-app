@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { JwtPayload, verifyToken } from '../utils/jwt.util';
 
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
+      user?: JwtPayload;
     }
   }
 }
@@ -30,7 +30,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     }
     
     // 3. Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const decoded = verifyToken(token);
     req.user = decoded;
     
     next();

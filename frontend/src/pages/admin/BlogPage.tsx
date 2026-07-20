@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { blogClient } from '../../api/client';
+import React, { useState, useEffect, useMemo } from 'react';
+import { apiV1Client, blogClient } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
+import { BlogEditor } from '../../components/BlogEditor';
 import {
   FileText,
   Plus,
@@ -27,6 +28,8 @@ interface BlogPost {
   content: string;
   thumbnail?: string;
   gallery?: string[];
+  thumbnailId?: number | null;
+  galleryImageIds?: number[];
   status: 'DRAFT' | 'PUBLISHED';
   featured: boolean;
   categoryId: number;
@@ -54,6 +57,7 @@ export const BlogPage: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentPost, setCurrentPost] = useState<BlogPost | null>(null);
   const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form States
   const [formData, setFormData] = useState<Partial<BlogPost>>({
@@ -65,6 +69,8 @@ export const BlogPage: React.FC = () => {
     categoryId: 1,
     thumbnail: '',
     gallery: [],
+    thumbnailId: null,
+    galleryImageIds: [],
     metaTitle: '',
     metaDescription: '',
   });
@@ -136,6 +142,8 @@ export const BlogPage: React.FC = () => {
       categoryId: 1,
       thumbnail: '',
       gallery: [],
+      thumbnailId: null,
+      galleryImageIds: [],
       metaTitle: '',
       metaDescription: '',
     });
@@ -147,6 +155,8 @@ export const BlogPage: React.FC = () => {
     setFormData({
       ...post,
       gallery: post.gallery || [],
+      thumbnailId: post.thumbnailId ?? null,
+      galleryImageIds: post.galleryImageIds || [],
     });
     setIsModalOpen(true);
   };
@@ -182,43 +192,89 @@ export const BlogPage: React.FC = () => {
     }));
   };
 
-  const handleGalleryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const urls = e.target.value.split('\n').filter(s => s.trim() !== '');
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+      const response = await apiV1Client.post('/images/single', formDataUpload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const imageData = response.data?.data;
+      if (imageData) {
+        setFormData((prev) => ({
+          ...prev,
+          thumbnail: imageData.url,
+          thumbnailId: imageData.id,
+        }));
+      }
+    } catch (err: any) {
+      triggerAlert('error', err.response?.data?.message || err.message || 'Gagal mengunggah thumbnail');
+    } finally {
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    try {
+      const formDataUpload = new FormData();
+      Array.from(files).forEach((file) => formDataUpload.append('files', file));
+      const response = await apiV1Client.post('/images/multiple', formDataUpload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const uploaded: Array<{ id: number; url: string }> = response.data?.data ?? [];
+      setFormData((prev) => ({
+        ...prev,
+        gallery: Array.from(new Set([...(prev.gallery || []), ...uploaded.map((item) => item.url)])),
+        galleryImageIds: Array.from(new Set([...(prev.galleryImageIds || []), ...uploaded.map((item) => item.id)])),
+      }));
+    } catch (err: any) {
+      triggerAlert('error', err.response?.data?.message || err.message || 'Gagal mengunggah galeri');
+    } finally {
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleRemoveGalleryImage = (index: number) => {
     setFormData((prev) => ({
       ...prev,
-      gallery: urls,
+      gallery: (prev.gallery || []).filter((_, i) => i !== index),
+      galleryImageIds: (prev.galleryImageIds || []).filter((_, i) => i !== index),
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setIsSubmitting(true);
+
     if (!user?.id) {
       triggerAlert('error', 'Anda harus login untuk membuat artikel');
+      setIsSubmitting(false);
       return;
     }
 
-    const validGallery = (formData.gallery || []).filter((url: string) => 
-      url && url.trim() !== '' && url.startsWith('http')
-    );
+const payload: any = {
+        title: formData.title,
+        slug: formData.slug || generateSlug(formData.title || ''),
+        content: formData.content,
+        status: formData.status,
+        featured: formData.featured,
+        categoryId: formData.categoryId,
+        authorId: user.id,
+        metaTitle: formData.metaTitle || null,
+        metaDescription: formData.metaDescription || null,
+      };
 
-    const payload = {
-      title: formData.title,
-      slug: formData.slug || generateSlug(formData.title || ''),
-      content: formData.content,
-      status: formData.status,
-      featured: formData.featured,
-      categoryId: formData.categoryId,
-      authorId: user.id,
-      thumbnail: formData.thumbnail && formData.thumbnail.trim() !== '' && formData.thumbnail.startsWith('http')
-        ? formData.thumbnail 
-        : null,
-      gallery: validGallery.length > 0 ? validGallery : [],
-      metaTitle: formData.metaTitle || null,
-      metaDescription: formData.metaDescription || null,
-    };
+      if (formData.thumbnailId !== undefined) {
+        payload.thumbnailImageId = formData.thumbnailId;
+      }
 
-    console.log('Payload:', payload);
+      if (formData.galleryImageIds && formData.galleryImageIds.length > 0) {
+        payload.galleryImageIds = formData.galleryImageIds;
+      }
 
     try {
       if (currentPost) {
@@ -234,6 +290,8 @@ export const BlogPage: React.FC = () => {
     } catch (err: any) {
       const message = err.response?.data?.message || err.message || 'Gagal menyimpan';
       triggerAlert('error', message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -473,6 +531,7 @@ export const BlogPage: React.FC = () => {
                       value={formData.slug || ''}
                       onChange={handleInputChange}
                       placeholder="auto-generated-dari-judul"
+                      readOnly={Boolean(currentPost)}
                       className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                     />
                   </div>
@@ -514,42 +573,86 @@ export const BlogPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Konten Artikel</label>
-                  <textarea
-                    name="content"
+                  <BlogEditor
                     value={formData.content || ''}
-                    onChange={handleInputChange}
-                    placeholder="Tulis artikel lengkap di sini..."
-                    rows={10}
-                    required
-                    className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm leading-relaxed"
+                    onChange={(content) => setFormData((prev) => ({ ...prev, content }))}
+                    onError={(message) => triggerAlert('error', message)}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                    Thumbnail URL (harus dimulai dengan http:// atau https://)
-                  </label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Thumbnail Artikel</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('thumbnail-upload')?.click()}
+                      className="px-4 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm hover:border-amber-500"
+                    >
+                      Unggah Thumbnail
+                    </button>
+                    <span className="text-xs text-zinc-500">Format gambar yang didukung. Maks 5MB.</span>
+                  </div>
                   <input
-                    type="text"
-                    name="thumbnail"
-                    value={formData.thumbnail || ''}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/image.jpg"
-                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                    id="thumbnail-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailUpload}
+                    className="hidden"
                   />
+                  {formData.thumbnail && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <img
+                        src={formData.thumbnail}
+                        alt="thumbnail preview"
+                        className="w-24 h-24 object-cover rounded-xl border border-zinc-800"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, thumbnail: '' }))}
+                        className="text-xs text-rose-400 hover:text-rose-200"
+                      >
+                        Hapus Thumbnail
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                    Gallery URLs (satu per baris, harus dimulai dengan http:// atau https://)
-                  </label>
-                  <textarea
-                    value={(formData.gallery || []).join('\n')}
-                    onChange={handleGalleryChange}
-                    placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
-                    rows={3}
-                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Gallery Images</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('gallery-upload')?.click()}
+                      className="px-4 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm hover:border-amber-500"
+                    >
+                      Unggah Gallery
+                    </button>
+                    <span className="text-xs text-zinc-500">Pilih beberapa gambar sekaligus.</span>
+                  </div>
+                  <input
+                    id="gallery-upload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleGalleryUpload}
+                    className="hidden"
                   />
+                  {formData.gallery && formData.gallery.length > 0 && (
+                    <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {formData.gallery.map((url, index) => (
+                        <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+                          <img src={url} alt={`gallery-${index}`} className="w-full h-24 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveGalleryImage(index)}
+                            className="absolute top-2 right-2 rounded-full bg-rose-500/90 text-white p-1 text-[10px]"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3 p-4 bg-zinc-950 border border-zinc-800 rounded-xl">
@@ -577,9 +680,10 @@ export const BlogPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-xl text-xs transition-all shadow-lg shadow-amber-500/10"
+                  disabled={isSubmitting}
+                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-xl text-xs transition-all shadow-lg shadow-amber-500/10 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
                 >
-                  Simpan Artikel
+                  {isSubmitting ? 'Menyimpan...' : 'Simpan Artikel'}
                 </button>
               </div>
             </form>

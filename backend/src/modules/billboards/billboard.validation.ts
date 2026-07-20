@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 const BillboardStatusSchema = z.string().min(1).max(100);
-const BillboardTypeEnum = z.enum(['Baliho', 'Billboard']);
-const BillboardOrientationEnum = z.enum(['Satu Sisi', 'Dua Sisi']);
-const BillboardLightingEnum = z.enum(['Back Light', 'Front Light', 'Non Light']);
+const BillboardTypeEnum = z.enum(['Baliho', 'Billboard', 'Neon Box', 'Spanduk']);
+const BillboardOrientationEnum = z.enum(['Satu Sisi', 'Dua Sisi', 'Tiga Sisi', 'Empat Sisi']);
+const BillboardLightingEnum = z.enum(['Back Light', 'Front Light', 'Non Light', 'LED']);
 
 export const createBillboardSchema = z.object({
   body: z.object({
@@ -21,11 +21,10 @@ export const createBillboardSchema = z.object({
     orientation: BillboardOrientationEnum,
     lighting: BillboardLightingEnum,
     traffic: z.string().max(255).optional().nullable(),
+    status: z.string().max(100).optional(),
     description: z.string().max(5000).optional().nullable(),
-    thumbnail: z.string().max(1000).optional().nullable(),
-    gallery: z.array(z.string().max(1000)).optional(),
-    availableFrom: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.date().optional()),
-    availableUntil: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.date().optional()),
+    thumbnailImageId: z.number().int().positive().optional().nullable(),
+    galleryImageIds: z.array(z.number().int().positive()).optional(),
   }),
 });
 
@@ -45,11 +44,10 @@ export const updateBillboardSchema = z.object({
     orientation: BillboardOrientationEnum.optional(),
     lighting: BillboardLightingEnum.optional(),
     traffic: z.string().max(255).optional().nullable(),
+    status: z.string().max(100).optional(),
     description: z.string().max(5000).optional().nullable(),
-    thumbnail: z.string().max(1000).optional().nullable(),
-    gallery: z.array(z.string().max(1000)).optional(),
-    availableFrom: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.date().optional()),
-    availableUntil: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.date().optional()),
+    thumbnailImageId: z.number().int().positive().optional().nullable(),
+    galleryImageIds: z.array(z.number().int().positive()).optional(),
   }),
 });
 

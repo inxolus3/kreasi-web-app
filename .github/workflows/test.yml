@@ -1,0 +1,62 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install backend deps
+        working-directory: backend
+        run: |
+          npm ci
+      - name: Install frontend deps
+        working-directory: frontend
+        run: |
+          npm ci
+      - name: Run Prisma migrate (test DB)
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/testdb
+        run: |
+          npx prisma migrate deploy || true
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/testdb
+          TEST_ADMIN_EMAIL: admin@test.local
+          TEST_ADMIN_PASSWORD: password123
+        run: |
+          npm test --silent
+      - name: Run frontend tests
+        working-directory: frontend
+        run: |
+          npm test --silent
+      - name: Playwright install
+        working-directory: .
+        run: npx playwright install --with-deps
+      - name: Run E2E tests
+        run: |
+          npx playwright test --project=chromium

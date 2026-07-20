@@ -36,7 +36,9 @@ interface Billboard {
   traffic?: string;
   description?: string;
   thumbnail?: string;
+  thumbnailId?: number | null;
   gallery?: string[];
+  galleryImageIds?: number[];
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string;
@@ -73,7 +75,9 @@ export const BillboardsPage: React.FC = () => {
     latitude: 0,
     longitude: 0,
     thumbnail: '',
+    thumbnailId: null,
     gallery: [],
+    galleryImageIds: [],
     traffic: '',
     description: '',
   });
@@ -167,7 +171,9 @@ export const BillboardsPage: React.FC = () => {
       latitude: -6.2088,
       longitude: 106.8456,
       thumbnail: '',
+      thumbnailId: null,
       gallery: [],
+      galleryImageIds: [],
       traffic: '',
       description: '',
     });
@@ -179,6 +185,8 @@ export const BillboardsPage: React.FC = () => {
     setFormData({
       ...billboard,
       gallery: billboard.gallery || [],
+      thumbnailId: billboard.thumbnailId ?? null,
+      galleryImageIds: billboard.galleryImageIds || [],
     });
     setIsModalOpen(true);
   };
@@ -224,12 +232,7 @@ export const BillboardsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ✅ Filter valid URLs only
-    const validGallery = (formData.gallery || []).filter((url: string) => 
-      url && url.trim() !== '' && url.startsWith('http')
-    );
-
-    const payload = {
+    const payload: any = {
       name: formData.name,
       code: formData.code || generateCode(formData.name || ''),
       slug: formData.slug || generateSlug(formData.name || ''),
@@ -243,10 +246,6 @@ export const BillboardsPage: React.FC = () => {
       lighting: formData.lighting,
       latitude: formData.latitude || 0,
       longitude: formData.longitude || 0,
-      thumbnail: formData.thumbnail && formData.thumbnail.trim() !== '' && formData.thumbnail.startsWith('http')
-        ? formData.thumbnail
-        : null,
-      gallery: validGallery.length > 0 ? validGallery : [],
       traffic: formData.traffic || null,
       description: formData.description || null,
       metaTitle: formData.metaTitle || null,
@@ -255,14 +254,22 @@ export const BillboardsPage: React.FC = () => {
       ogImage: formData.ogImage || null,
     };
 
+    if (formData.thumbnailId !== undefined) {
+      payload.thumbnailImageId = formData.thumbnailId;
+    }
+
+    if (formData.galleryImageIds && formData.galleryImageIds.length > 0) {
+      payload.galleryImageIds = formData.galleryImageIds;
+    }
+
     console.log('Payload:', payload);
 
     try {
       if (currentBillboard) {
-        await apiV1Client.put(`/billboards/${currentBillboard.id}`, payload);
+        await apiV1Client.patch(`/admin/billboards/${currentBillboard.id}`, payload);
         triggerAlert('success', `Billboard "${formData.name}" berhasil diperbarui.`);
       } else {
-        await apiV1Client.post('/billboards', payload);
+        await apiV1Client.post('/admin/billboards', payload);
         triggerAlert('success', `Billboard "${formData.name}" berhasil ditambahkan.`);
       }
       await fetchBillboards();
@@ -276,7 +283,7 @@ export const BillboardsPage: React.FC = () => {
   const handleDelete = async () => {
     if (!currentBillboard) return;
     try {
-      await apiV1Client.delete(`/billboards/${currentBillboard.id}`);
+      await apiV1Client.delete(`/admin/billboards/${currentBillboard.id}`);
       await fetchBillboards();
       triggerAlert('success', `Billboard "${currentBillboard.name}" berhasil dihapus.`);
       setIsDeleteOpen(false);
@@ -724,30 +731,130 @@ export const BillboardsPage: React.FC = () => {
                 {/* Thumbnail */}
                 <div className="col-span-1 md:col-span-2">
                   <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                    Thumbnail URL (harus dimulai dengan http:// atau https://)
+                    Upload Thumbnail Billboard
                   </label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('billboard-thumbnail-upload')?.click()}
+                      className="px-4 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm hover:border-amber-500"
+                    >
+                      Unggah Thumbnail
+                    </button>
+                    <span className="text-xs text-zinc-500">Format gambar yang didukung. Maks 5MB.</span>
+                  </div>
                   <input
-                    type="text"
-                    name="thumbnail"
-                    value={formData.thumbnail || ''}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/image.jpg"
-                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                    id="billboard-thumbnail-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const formDataUpload = new FormData();
+                        formDataUpload.append('file', file);
+                        const response = await apiV1Client.post('/images/single', formDataUpload, {
+                          headers: { 'Content-Type': 'multipart/form-data' },
+                        });
+                        const imageData = response.data?.data;
+                        if (imageData) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            thumbnail: imageData.url,
+                            thumbnailId: imageData.id,
+                          }));
+                        }
+                      } catch (err: any) {
+                        triggerAlert('error', err.response?.data?.message || err.message || 'Gagal mengunggah thumbnail');
+                      } finally {
+                        if (e.target) e.target.value = '';
+                      }
+                    }}
                   />
+                  {formData.thumbnail && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <img
+                        src={formData.thumbnail}
+                        alt="thumbnail preview"
+                        className="w-24 h-24 object-cover rounded-xl border border-zinc-800"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, thumbnail: '', thumbnailId: null }))}
+                        className="text-xs text-rose-400 hover:text-rose-200"
+                      >
+                        Hapus Thumbnail
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Gallery */}
                 <div className="col-span-1 md:col-span-2">
                   <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                    Gallery URLs (satu per baris, harus dimulai dengan http:// atau https://)
+                    Upload Gallery Billboard
                   </label>
-                  <textarea
-                    value={(formData.gallery || []).join('\n')}
-                    onChange={handleGalleryChange}
-                    placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
-                    rows={3}
-                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('billboard-gallery-upload')?.click()}
+                      className="px-4 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-sm hover:border-amber-500"
+                    >
+                      Unggah Gallery
+                    </button>
+                    <span className="text-xs text-zinc-500">Pilih beberapa gambar sekaligus.</span>
+                  </div>
+                  <input
+                    id="billboard-gallery-upload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = e.target.files;
+                      if (!files || files.length === 0) return;
+                      try {
+                        const formDataUpload = new FormData();
+                        Array.from(files).forEach((file) => formDataUpload.append('files', file));
+                        const response = await apiV1Client.post('/images/multiple', formDataUpload, {
+                          headers: { 'Content-Type': 'multipart/form-data' },
+                        });
+                        const uploaded: Array<{ id: number; url: string }> = response.data?.data ?? [];
+                        setFormData((prev) => ({
+                          ...prev,
+                          gallery: Array.from(new Set([...(prev.gallery || []), ...uploaded.map((item) => item.url)])),
+                          galleryImageIds: Array.from(new Set([...(prev.galleryImageIds || []), ...uploaded.map((item) => item.id)])),
+                        }));
+                      } catch (err: any) {
+                        triggerAlert('error', err.response?.data?.message || err.message || 'Gagal mengunggah galeri');
+                      } finally {
+                        if (e.target) e.target.value = '';
+                      }
+                    }}
                   />
+                  {formData.gallery && formData.gallery.length > 0 && (
+                    <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {formData.gallery.map((url, index) => (
+                        <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+                          <img src={url} alt={`gallery-${index}`} className="w-full h-24 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                gallery: (prev.gallery || []).filter((_, i) => i !== index),
+                                galleryImageIds: (prev.galleryImageIds || []).filter((_, i) => i !== index),
+                              }));
+                            }}
+                            className="absolute top-2 right-2 rounded-full bg-rose-500/90 text-white p-1 text-[10px]"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Description */}

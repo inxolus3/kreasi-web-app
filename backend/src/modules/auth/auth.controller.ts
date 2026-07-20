@@ -47,21 +47,27 @@ export class AuthController {
       const data = await this.authService.login(req.body) as LoginData; // ✅ Type assertion
       
       const isProd = process.env.NODE_ENV === 'production';
-      
-      // Set refreshToken as HttpOnly cookie
+      // Set access and refresh tokens as HttpOnly cookies
+      res.cookie('accessToken', data.accessToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000, // 15 minutes
+        path: '/',
+      });
       res.cookie('refreshToken', data.refreshToken, {
         httpOnly: true,
         secure: isProd,
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
       });
 
-      // ✅ Kirim accessToken di body + user
+      // Return only user information; tokens are in secure cookies
       res.status(200).json({
         status: 'success',
         data: {
           user: data.user,
-          accessToken: data.accessToken,
         }
       });
     } catch (error: any) {
@@ -80,9 +86,9 @@ export class AuthController {
         return;
       }
       await this.authService.logout(req.user.userId);
-      
-      res.clearCookie('refreshToken');
-      res.clearCookie('accessToken');
+      const isProd = process.env.NODE_ENV === 'production';
+      res.clearCookie('refreshToken', { path: '/' });
+      res.clearCookie('accessToken', { path: '/' });
 
       res.status(200).json({ status: 'success', message: 'Logged out successfully' });
     } catch (error) {
@@ -100,20 +106,26 @@ export class AuthController {
       const data = await this.authService.refreshToken(token) as RefreshData; // ✅ Type assertion
       
       const isProd = process.env.NODE_ENV === 'production';
-
+      // Set rotated refresh token and new access token as secure cookies
+      res.cookie('accessToken', data.accessToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000,
+        path: '/',
+      });
       res.cookie('refreshToken', data.refreshToken, {
         httpOnly: true,
         secure: isProd,
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
       });
 
-      // ✅ Kirim accessToken di body
       res.status(200).json({
         status: 'success',
         data: {
           user: data.user,
-          accessToken: data.accessToken,
         }
       });
     } catch (error: any) {

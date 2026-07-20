@@ -1,4 +1,5 @@
 import multer from 'multer';
+import { Request } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -21,10 +22,10 @@ const sanitizeFilename = (filename: string): string => {
 };
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const cleanName = sanitizeFilename(file.originalname);
     const ext = path.extname(cleanName).toLowerCase();
     const nameWithoutExt = path.basename(cleanName, ext);
@@ -33,7 +34,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
   const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
   
