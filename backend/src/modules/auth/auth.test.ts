@@ -95,8 +95,12 @@ describe('Auth API', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toHaveProperty('accessToken');
-      expect(response.body.data).toHaveProperty('refreshToken');
+      const setCookie = response.headers['set-cookie'];
+      expect(Array.isArray(setCookie)).toBe(true);
+      const hasAccess = setCookie.some((c: string) => c.startsWith('accessToken='));
+      const hasRefresh = setCookie.some((c: string) => c.startsWith('refreshToken='));
+      expect(hasAccess).toBe(true);
+      expect(hasRefresh).toBe(true);
     });
   });
 });

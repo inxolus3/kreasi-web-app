@@ -21,6 +21,11 @@ export class PostRepository {
     if (query.categoryId) {
       where.categoryId = parseInt(query.categoryId, 10);
     }
+    if (query.tagId) {
+      where.tags = {
+        some: { id: parseInt(query.tagId, 10) }
+      };
+    }
     if (query.featured !== undefined) {
       where.featured = query.featured === 'true' || query.featured === true;
     }
@@ -86,6 +91,11 @@ export class PostRepository {
     }
     if (query.categoryId) {
       where.categoryId = parseInt(query.categoryId, 10);
+    }
+    if (query.tagId) {
+      where.tags = {
+        some: { id: parseInt(query.tagId, 10) }
+      };
     }
     if (query.featured !== undefined) {
       where.featured = query.featured === 'true' || query.featured === true;

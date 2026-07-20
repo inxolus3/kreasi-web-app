@@ -26,12 +26,13 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('3000'),
   DATABASE_URL: z.string().url().optional(),
-  JWT_SECRET: z.string().optional(),
-  JWT_REFRESH_SECRET: z.string().optional(),
+  JWT_SECRET: z.string(),
+  JWT_REFRESH_SECRET: z.string(),
   JWT_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   STORAGE_PROVIDER: z.enum(['local', 's3', 'r2']).default('local'),
-  FRONTEND_URL: z.string().default('*'),
+  FRONTEND_URL: z.string().optional(),
+  ALLOWED_ORIGINS: z.string().optional(), // comma-separated list
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   AWS_REGION: z.string().optional(),
@@ -40,6 +41,21 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().optional(),
   ALERT_WEBHOOK: z.string().optional(),
 }).superRefine((data, ctx) => {
+  // Always require critical secrets and, in production, require DB and allowed origins
+  if (!data.JWT_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'JWT_SECRET is required',
+      path: ['JWT_SECRET'],
+    });
+  }
+  if (!data.JWT_REFRESH_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'JWT_REFRESH_SECRET is required',
+      path: ['JWT_REFRESH_SECRET'],
+    });
+  }
   if (data.NODE_ENV === 'production') {
     if (!data.DATABASE_URL) {
       ctx.addIssue({
@@ -48,18 +64,11 @@ const envSchema = z.object({
         path: ['DATABASE_URL'],
       });
     }
-    if (!data.JWT_SECRET) {
+    if (!data.ALLOWED_ORIGINS && !data.FRONTEND_URL) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'JWT_SECRET is strictly required in production mode',
-        path: ['JWT_SECRET'],
-      });
-    }
-    if (!data.JWT_REFRESH_SECRET) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'JWT_REFRESH_SECRET is strictly required in production mode',
-        path: ['JWT_REFRESH_SECRET'],
+        message: 'ALLOWED_ORIGINS or FRONTEND_URL is required in production to restrict CORS',
+        path: ['ALLOWED_ORIGINS'],
       });
     }
   }
@@ -87,11 +96,19 @@ if (_env.data.NODE_ENV === 'production' && _env.data.DATABASE_URL) {
   }
 }
 
+// Provide parsed ALLOWED_ORIGINS as array for convenience
+const parseAllowedOrigins = (raw?: string | undefined): string[] => {
+  if (!raw) return [];
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
+};
+
 export const env = {
   ..._env.data,
   DATABASE_URL: productionDatabaseUrl,
-  JWT_SECRET: _env.data.JWT_SECRET || 'supersecret_jwt_key_here',
-  JWT_REFRESH_SECRET: _env.data.JWT_REFRESH_SECRET || 'supersecret_refresh_key_here',
+  JWT_SECRET: _env.data.JWT_SECRET,
+  JWT_REFRESH_SECRET: _env.data.JWT_REFRESH_SECRET,
+  ALLOWED_ORIGINS: _env.data.ALLOWED_ORIGINS,
+  ALLOWED_ORIGINS_ARRAY: parseAllowedOrigins(_env.data.ALLOWED_ORIGINS || _env.data.FRONTEND_URL),
   SENTRY_DSN: _env.data.SENTRY_DSN,
   ALERT_WEBHOOK: _env.data.ALERT_WEBHOOK,
 };

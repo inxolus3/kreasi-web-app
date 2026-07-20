@@ -59,8 +59,6 @@ export class BillboardController {
         thumbnailId: b.thumbnail?.id ?? null,
         type: b.type,
         lighting: b.lighting,
-        gallery: getImageUrls(b.gallery),
-        galleryImageIds: getImageIds(b.gallery),
       }));
 
       res.status(200).json({ status: 'success', data: markers });

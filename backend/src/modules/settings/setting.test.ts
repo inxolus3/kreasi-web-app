@@ -11,6 +11,17 @@ vi.mock('../../utils/prisma', () => ({
       findUnique: vi.fn(),
       upsert: vi.fn(),
     },
+    $transaction: vi.fn((callback: any) => {
+      // If callback is a function, execute it
+      if (typeof callback === 'function') {
+        return callback();
+      }
+      // If callback is an array of promises, execute them
+      if (Array.isArray(callback)) {
+        return Promise.all(callback);
+      }
+      return Promise.resolve(callback);
+    }),
   },
 }));
 
