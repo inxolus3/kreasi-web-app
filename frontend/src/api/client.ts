@@ -21,6 +21,20 @@ const getHostUrl = (url: string): string => {
 
 const hostUrl = getHostUrl(apiBaseUrl);
 
+const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.localStorage.getItem('accessToken');
+};
+
+const safeLogError = (message: string, error: unknown): void => {
+  if (import.meta.env.DEV) {
+    console.error(message, error);
+  }
+};
+
 // 1. Client for /api/v1 (Billboards, Settings, Uploads)
 export const apiV1Client = axios.create({
   baseURL: apiBaseUrl,

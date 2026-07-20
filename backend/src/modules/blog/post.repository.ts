@@ -55,7 +55,6 @@ export class PostRepository {
       include: {
         author: { select: { id: true, name: true, email: true } },
         category: true,
-        author: { select: { id: true, name: true, role: true } },
         thumbnail: true,
         gallery: true,
       },
