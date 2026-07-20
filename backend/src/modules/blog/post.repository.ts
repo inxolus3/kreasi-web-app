@@ -21,10 +21,20 @@ export class PostRepository {
       take,
       where,
       orderBy,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        thumbnail: true,
+        metaTitle: true,
+        metaDescription: true,
+        status: true,
+        featured: true,
+        createdAt: true,
+        updatedAt: true,
         author: { select: { id: true, name: true, email: true } },
-        category: true,
-        tags: true,
+        category: { select: { id: true, name: true, slug: true } },
+        tags: { select: { id: true, name: true, slug: true } },
       },
     });
   }
@@ -36,10 +46,22 @@ export class PostRepository {
   async findById(id: number): Promise<Post | null> {
     return prisma.post.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        content: true,
+        thumbnail: true,
+        gallery: true,
+        metaTitle: true,
+        metaDescription: true,
+        status: true,
+        featured: true,
+        createdAt: true,
+        updatedAt: true,
         author: { select: { id: true, name: true, email: true } },
-        category: true,
-        tags: true,
+        category: { select: { id: true, name: true, slug: true } },
+        tags: { select: { id: true, name: true, slug: true } },
       },
     });
   }
@@ -47,10 +69,22 @@ export class PostRepository {
   async findBySlug(slug: string): Promise<Post | null> {
     return prisma.post.findUnique({
       where: { slug },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        content: true,
+        thumbnail: true,
+        gallery: true,
+        metaTitle: true,
+        metaDescription: true,
+        status: true,
+        featured: true,
+        createdAt: true,
+        updatedAt: true,
         author: { select: { id: true, name: true, email: true } },
-        category: true,
-        tags: true,
+        category: { select: { id: true, name: true, slug: true } },
+        tags: { select: { id: true, name: true, slug: true } },
       },
     });
   }
@@ -59,10 +93,22 @@ export class PostRepository {
     return prisma.post.update({
       where: { id },
       data,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        content: true,
+        thumbnail: true,
+        gallery: true,
+        metaTitle: true,
+        metaDescription: true,
+        status: true,
+        featured: true,
+        createdAt: true,
+        updatedAt: true,
         author: { select: { id: true, name: true, email: true } },
-        category: true,
-        tags: true,
+        category: { select: { id: true, name: true, slug: true } },
+        tags: { select: { id: true, name: true, slug: true } },
       },
     });
   }

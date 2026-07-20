@@ -1,4 +1,5 @@
 import { TagRepository } from './tag.repository';
+import { ensureUniqueSlug } from './slug-guard';
 
 export class TagService {
   private tagRepository: TagRepository;
@@ -25,10 +26,7 @@ export class TagService {
 
   async updateTag(id: number, data: { name?: string; slug?: string }) {
     if (data.slug) {
-      const existing = await this.tagRepository.findBySlug(data.slug);
-      if (existing && existing.id !== id) {
-        throw new Error('Tag with this slug already exists');
-      }
+      await ensureUniqueSlug(() => this.tagRepository.findBySlug(data.slug), id, data.slug, 'Tag with this slug already exists');
     }
     return this.tagRepository.update(id, data);
   }

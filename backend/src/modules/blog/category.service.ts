@@ -1,4 +1,5 @@
 import { CategoryRepository } from './category.repository';
+import { ensureUniqueSlug } from './slug-guard';
 
 export class CategoryService {
   private categoryRepository: CategoryRepository;
@@ -25,10 +26,7 @@ export class CategoryService {
 
   async updateCategory(id: number, data: { name?: string; slug?: string }) {
     if (data.slug) {
-      const existing = await this.categoryRepository.findBySlug(data.slug);
-      if (existing && existing.id !== id) {
-        throw new Error('Category with this slug already exists');
-      }
+      await ensureUniqueSlug(() => this.categoryRepository.findBySlug(data.slug), id, data.slug, 'Category with this slug already exists');
     }
     return this.categoryRepository.update(id, data);
   }

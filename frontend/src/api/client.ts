@@ -27,29 +27,22 @@ const getHostUrl = (url: string): string => {
 
 const hostUrl = getHostUrl(apiBaseUrl);
 
+const createApiClient = (baseURL: string) =>
+  axios.create({
+    baseURL,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
 // 1. Client for /api/v1 (Billboards, Settings, Uploads)
-export const apiV1Client = axios.create({
-  baseURL: apiBaseUrl,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+export const apiV1Client = createApiClient(apiBaseUrl);
 
 // 2. Client for /api/auth
-export const authClient = axios.create({
-  baseURL: hostUrl ? `${hostUrl}/api/auth` : '/api/auth',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+export const authClient = createApiClient(hostUrl ? `${hostUrl}/api/auth` : '/api/auth');
 
 // 3. Client for /api/blog
-export const blogClient = axios.create({
-  baseURL: hostUrl ? `${hostUrl}/api/blog` : '/api/blog',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+export const blogClient = createApiClient(hostUrl ? `${hostUrl}/api/blog` : '/api/blog');
 
 // Request Interceptor to add JWT Auth tokens automatically
 const addAuthToken = (config: InternalAxiosRequestConfig) => {
@@ -60,6 +53,6 @@ const addAuthToken = (config: InternalAxiosRequestConfig) => {
   return config;
 };
 
-apiV1Client.interceptors.request.use(addAuthToken);
-authClient.interceptors.request.use(addAuthToken);
-blogClient.interceptors.request.use(addAuthToken);
+[apiV1Client, authClient, blogClient].forEach((client) => {
+  client.interceptors.request.use(addAuthToken);
+});

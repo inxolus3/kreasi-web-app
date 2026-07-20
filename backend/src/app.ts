@@ -99,9 +99,16 @@ app.use(
   })
 );
 
-app.use(compression({ level: 6, threshold: 1024 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(compression({
+  level: 6,
+  threshold: 1024,
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  },
+}));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(sanitizeResponseMiddleware);
 
 // Serve uploaded files via a secure controller with authentication checks

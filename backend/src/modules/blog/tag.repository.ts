@@ -8,7 +8,8 @@ export class TagRepository {
 
   async findAll(): Promise<Tag[]> {
     return prisma.tag.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true, slug: true, createdAt: true, updatedAt: true },
     });
   }
 

@@ -39,6 +39,8 @@ model Category {
   posts     Post[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model Tag {
@@ -48,6 +50,8 @@ model Tag {
   posts     Post[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model Post {
@@ -72,6 +76,10 @@ model Post {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([featured])
 }
 
 enum BillboardStatus {
@@ -112,6 +120,11 @@ model Billboard {
   availableUntil DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+
+  @@index([status])
+  @@index([province])
+  @@index([city])
+  @@index([createdAt])
 }
 
 model Setting {
@@ -121,6 +134,9 @@ model Setting {
   group     String   @default("general")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([group])
+  @@index([key])
 }
 
 enum PageStatus {

@@ -23,12 +23,14 @@ export default defineConfig(() => {
     build: {
       target: 'es2020',
       minify: 'terser',
-      sourcemap: true,
+      sourcemap: false,
       terserOptions: {
         compress: {
           drop_console: true,
           drop_debugger: true,
+          passes: 2,
         },
+        mangle: true,
       },
       rollupOptions: {
         output: {

@@ -8,7 +8,8 @@ export class CategoryRepository {
 
   async findAll(): Promise<Category[]> {
     return prisma.category.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true, slug: true, createdAt: true, updatedAt: true },
     });
   }
 
