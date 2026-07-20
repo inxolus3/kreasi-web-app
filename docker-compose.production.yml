@@ -1,0 +1,17 @@
+services:
+  postgres:
+    restart: always
+
+  backend:
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+
+  frontend:
+    restart: always

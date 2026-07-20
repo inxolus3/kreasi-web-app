@@ -177,7 +177,7 @@ export class UploadService {
     this.validateFile(file, allowedMimeTypes, maxSizeBytes);
 
     // Validate real content via sharp
-    const isValidImage = await validateImageFile(file.buffer);
+    const isValidImage = await validateImageFile(file.buffer, file.mimetype);
     if (!isValidImage) {
       throw new Error('Invalid file content: The file is not a valid image.');
     }

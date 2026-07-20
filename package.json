@@ -1,0 +1,24 @@
+{
+  "name": "kreasi-web-app",
+  "private": true,
+  "scripts": {
+    "prepare": "husky install",
+    "format": "prettier --write .",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.0.0",
+    "prettier": "^3.5.2"
+  },
+  "lint-staged": {
+    "backend/**/*.{ts,tsx,js,json,md}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "frontend/**/*.{ts,tsx,js,jsx,json,md}": [
+      "prettier --write",
+      "eslint --fix"
+    ]
+  }
+}

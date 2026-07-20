@@ -39,6 +39,8 @@ model Category {
   posts     Post[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model Tag {
@@ -48,6 +50,8 @@ model Tag {
   posts     Post[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model Post {
@@ -73,6 +77,10 @@ model Post {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([featured])
 }
 
 model Billboard {
@@ -100,8 +108,15 @@ model Billboard {
   metaDescription String?   @db.Text
   metaKeywords    String?
   ogImage         String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  availableFrom  DateTime?
+  availableUntil DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([status])
+  @@index([province])
+  @@index([city])
+  @@index([createdAt])
 }
 
 model Image {
@@ -125,6 +140,9 @@ model Setting {
   group     String   @default("general")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([group])
+  @@index([key])
 }
 
 enum PageStatus {

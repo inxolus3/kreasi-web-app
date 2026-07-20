@@ -3,28 +3,31 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 
-export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    sentryVitePlugin({
-      org: process.env.SENTRY_ORG,
-      project: process.env.SENTRY_PROJECT,
-      authToken: process.env.SENTRY_AUTH_TOKEN,
-    }),
-  ],
-  server: {
-    port: 5173,
-    proxy: {
-      '/api/v1': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false,
+export default defineConfig(() => {
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      process.env.SENTRY_AUTH_TOKEN ? sentryVitePlugin({
+        org: 'your-org',
+        project: 'kreasi-cms-frontend',
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+      }) : null,
+    ].filter(Boolean),
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, '.'),
       },
-      '/api/auth': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false,
+    },
+    build: {
+      target: 'es2020',
+      minify: 'terser',
+      sourcemap: true,
+      terserOptions: {
+        compress: {
+          drop_console: true,
+          drop_debugger: true,
+        },
       },
       // ✅ PASTIKAN INI ADA:
       '/api/blog': {

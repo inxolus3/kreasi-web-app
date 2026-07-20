@@ -111,12 +111,16 @@ app.use(
   })
 );
 
-app.use(compression({ level: 6, threshold: 1024 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-// cookie-parser is required for cookie-based authentication
-// (refreshToken HttpOnly cookie + accessToken cookie fallback in auth middleware).
-app.use(cookieParser());
+app.use(compression({
+  level: 6,
+  threshold: 1024,
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  },
+}));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(sanitizeResponseMiddleware);
 
 // Uploads route with auth

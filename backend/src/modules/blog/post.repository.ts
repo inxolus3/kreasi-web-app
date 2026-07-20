@@ -53,8 +53,8 @@ export class PostRepository {
     return prisma.post.findUnique({
       where: { id },
       include: {
+        author: { select: { id: true, name: true, email: true } },
         category: true,
-        author: { select: { id: true, name: true, role: true } },
         thumbnail: true,
         gallery: true,
       },
@@ -120,28 +120,11 @@ export class PostRepository {
   }
 
   async create(data: Prisma.PostCreateInput) {
-    return prisma.post.create({
-      data,
-      include: {
-        category: true,
-        author: { select: { id: true, name: true, role: true } },
-        thumbnail: true,
-        gallery: true,
-      },
-    });
+    return prisma.post.create({ data });
   }
 
   async update(id: number, data: Prisma.PostUpdateInput) {
-    return prisma.post.update({
-      where: { id },
-      data,
-      include: {
-        category: true,
-        author: { select: { id: true, name: true, role: true } },
-        thumbnail: true,
-        gallery: true,
-      },
-    });
+    return prisma.post.update({ where: { id }, data });
   }
 
   async delete(id: number) {

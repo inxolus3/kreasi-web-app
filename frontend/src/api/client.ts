@@ -21,50 +21,45 @@ const getHostUrl = (url: string): string => {
 
 const hostUrl = getHostUrl(apiBaseUrl);
 
+const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.localStorage.getItem('accessToken');
+};
+
+const safeLogError = (message: string, error: unknown): void => {
+  if (import.meta.env.DEV) {
+    console.error(message, error);
+  }
+};
+
+// 1. Client for /api/v1 (Billboards, Settings, Uploads)
 export const apiV1Client = axios.create({
   baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
 });
 
+// 2. Client for /api/auth
 export const authClient = axios.create({
   baseURL: hostUrl ? `${hostUrl}/api/auth` : '/api/auth',
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
 });
 
+// 3. Client for /api/blog
 export const blogClient = axios.create({
   baseURL: hostUrl ? `${hostUrl}/api/blog` : '/api/blog',
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
 });
 
-const safeLogError = (prefix: string, error: AxiosError | any) => {
-  let message = 'Unknown error';
-  
-  if (error?.response?.data?.message) {
-    message = error.response.data.message;
-  } else if (error?.response?.data?.error) {
-    message = error.response.data.error;
-  } else if (error?.message) {
-    message = error.message;
-  } else if (typeof error === 'string') {
-    message = error;
-  }
-  
-  console.error(`[${prefix}] ${message}`);
-};
-
-const getAuthToken = () => {
-  return localStorage.getItem('accessToken') ?? localStorage.getItem('token') ?? undefined;
-};
-
+// Request Interceptor to add JWT Auth tokens automatically
 const addAuthToken = (config: InternalAxiosRequestConfig) => {
   const token = getAuthToken();
   if (token) {
@@ -73,9 +68,9 @@ const addAuthToken = (config: InternalAxiosRequestConfig) => {
   return config;
 };
 
-apiV1Client.interceptors.request.use(addAuthToken);
-authClient.interceptors.request.use(addAuthToken);
-blogClient.interceptors.request.use(addAuthToken);
+[apiV1Client, authClient, blogClient].forEach((client) => {
+  client.interceptors.request.use(addAuthToken);
+});
 
 const handleResponseError = (error: AxiosError) => {
   const url = error.config?.url || 'unknown';
