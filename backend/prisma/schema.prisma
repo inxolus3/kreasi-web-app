@@ -59,8 +59,9 @@ model Post {
   title           String
   slug            String     @unique
   content         String     @db.Text
-  thumbnail       String?
-  gallery         String[]
+  thumbnailId     Int?
+  thumbnail       Image?     @relation("PostThumbnail", fields: [thumbnailId], references: [id])
+  gallery         Image[]    @relation("PostGallery")
   metaTitle       String?
   metaDescription String?
   status          PostStatus @default(DRAFT)
@@ -98,9 +99,11 @@ model Billboard {
   orientation     String
   lighting        String
   traffic         String?
+  status          String    @default("AVAILABLE")
   description     String?   @db.Text
-  thumbnail       String?
-  gallery         String[]
+  thumbnailId     Int?
+  thumbnail       Image?    @relation("BillboardThumbnail", fields: [thumbnailId], references: [id])
+  gallery         Image[]   @relation("BillboardGallery")
   metaTitle       String?
   metaDescription String?   @db.Text
   metaKeywords    String?
@@ -114,6 +117,20 @@ model Billboard {
   @@index([province])
   @@index([city])
   @@index([createdAt])
+}
+
+model Image {
+  id        Int      @id @default(autoincrement())
+  filename  String
+  mimeType  String
+  data      Bytes
+  size      Int
+  createdAt DateTime @default(now())
+
+  postThumbnails      Post[]      @relation("PostThumbnail")
+  billboardThumbnails Billboard[] @relation("BillboardThumbnail")
+  postGalleries       Post[]      @relation("PostGallery")
+  billboardGalleries  Billboard[] @relation("BillboardGallery")
 }
 
 model Setting {

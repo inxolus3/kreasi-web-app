@@ -6,6 +6,7 @@ import { auditLog } from '../../middlewares/audit.middleware';
 import {
   getPosts,
   getPost,
+  getPostBySlug,
   createPost,
   updatePost,
   deletePost,
@@ -32,6 +33,11 @@ router.get(
   '/posts',
   validate(getPostsQuerySchema),
   getPosts
+);
+
+router.get(
+  '/posts/slug/:slug',
+  getPostBySlug
 );
 
 router.get(

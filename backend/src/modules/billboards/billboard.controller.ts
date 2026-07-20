@@ -1,6 +1,39 @@
 import { Request, Response, NextFunction } from 'express';
 import { BillboardService } from './billboard.service';
 
+const getImageUrl = (image: any): string | null => {
+  if (!image || typeof image !== 'object' || typeof image.id !== 'number') {
+    return null;
+  }
+  return `/api/v1/images/${image.id}`;
+};
+
+const getImageUrls = (images: any): string[] => {
+  if (!Array.isArray(images)) {
+    return [];
+  }
+  return images
+    .map((image) => getImageUrl(image))
+    .filter((url): url is string => typeof url === 'string');
+};
+
+const getImageIds = (images: any): number[] => {
+  if (!Array.isArray(images)) {
+    return [];
+  }
+  return images
+    .map((image) => (image && typeof image.id === 'number' ? image.id : null))
+    .filter((id): id is number => typeof id === 'number');
+};
+
+const formatBillboard = (billboard: any) => ({
+  ...billboard,
+  thumbnailId: billboard.thumbnail?.id ?? null,
+  galleryImageIds: getImageIds(billboard.gallery),
+  thumbnail: getImageUrl(billboard.thumbnail),
+  gallery: getImageUrls(billboard.gallery),
+});
+
 export class BillboardController {
   constructor(private readonly billboardService: BillboardService) {}
 
@@ -22,10 +55,10 @@ export class BillboardController {
         district: b.district,
         address: b.address,
         traffic: b.traffic,
-        thumbnail: b.thumbnail,
+        thumbnail: getImageUrl(b.thumbnail),
+        thumbnailId: b.thumbnail?.id ?? null,
         type: b.type,
         lighting: b.lighting,
-        gallery: b.gallery || [],
       }));
 
       res.status(200).json({ status: 'success', data: markers });
@@ -51,9 +84,11 @@ export class BillboardController {
         type: billboard.type,
         orientation: billboard.orientation,
         lighting: billboard.lighting,
-        thumbnail: billboard.thumbnail,
+        thumbnail: getImageUrl(billboard.thumbnail),
+        thumbnailId: billboard.thumbnail?.id ?? null,
         description: billboard.description,
-        gallery: billboard.gallery,
+        gallery: getImageUrls(billboard.gallery),
+        galleryImageIds: getImageIds(billboard.gallery),
         traffic: billboard.traffic,
         createdAt: billboard.createdAt,
         updatedAt: billboard.updatedAt,
@@ -84,7 +119,7 @@ export class BillboardController {
   createBillboard = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const billboard = await this.billboardService.createBillboard(req.body);
-      res.status(201).json({ status: 'success', data: billboard });
+      res.status(201).json({ status: 'success', data: formatBillboard(billboard) });
     } catch (error) {
       next(error);
     }
@@ -93,7 +128,8 @@ export class BillboardController {
   getAdminBillboards = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.billboardService.getBillboards(req.query);
-      res.status(200).json({ status: 'success', ...result });
+      const formatted = result.data.map(formatBillboard);
+      res.status(200).json({ status: 'success', data: formatted, meta: result.meta });
     } catch (error) {
       next(error);
     }
@@ -102,7 +138,7 @@ export class BillboardController {
   getAdminBillboardById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const billboard = await this.billboardService.getBillboardById(parseInt(req.params.id, 10));
-      res.status(200).json({ status: 'success', data: billboard });
+      res.status(200).json({ status: 'success', data: formatBillboard(billboard) });
     } catch (error) {
       next(error);
     }
@@ -112,7 +148,7 @@ export class BillboardController {
     try {
       const id = parseInt(req.params.id, 10);
       const billboard = await this.billboardService.updateBillboard(id, req.body);
-      res.status(200).json({ status: 'success', data: billboard });
+      res.status(200).json({ status: 'success', data: formatBillboard(billboard) });
     } catch (error) {
       next(error);
     }
@@ -141,35 +177,37 @@ export class BillboardController {
 
   uploadThumbnail = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.file) {
+      const file = req.file;
+      if (!file) {
         res.status(400).json({ status: 'fail', message: 'No file uploaded' });
         return;
       }
 
-      const relativePath = `/uploads/${req.file.filename}`;
+      const relativePath = `/uploads/${file.filename}`;
       const absoluteUrl = `${req.protocol}://${req.get('host')}${relativePath}`;
 
       res.status(200).json({
         status: 'success',
         data: {
-          filename: req.file.filename,
+          filename: file.filename,
           url: absoluteUrl,
           relativePath,
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       next(error);
     }
   };
 
   uploadGallery = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.files || (Array.isArray(req.files) && req.files.length === 0)) {
+      const requestWithFiles = req as Request & { files?: any[] };
+      if (!requestWithFiles.files || (Array.isArray(requestWithFiles.files) && requestWithFiles.files.length === 0)) {
         res.status(400).json({ status: 'fail', message: 'No files uploaded' });
         return;
       }
 
-      const files = req.files as Express.Multer.File[];
+      const files = requestWithFiles.files as any[];
       const urls = files.map((file) => {
         const relativePath = `/uploads/${file.filename}`;
         const absoluteUrl = `${req.protocol}://${req.get('host')}${relativePath}`;

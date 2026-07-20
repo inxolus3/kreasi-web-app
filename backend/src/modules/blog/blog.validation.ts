@@ -39,15 +39,15 @@ export const createPostSchema = z.object({
     title: z.string().min(1).max(255),
     slug: z.string().min(1).max(255),
     content: z.string().min(1).max(100000),
-    thumbnail: z.string().url().max(1000).optional().nullable(),
-    gallery: z.array(z.string().url().max(1000)).optional(),
+    thumbnailImageId: z.number().int().positive().optional().nullable(),
+    galleryImageIds: z.array(z.number().int().positive()).optional(),
     metaTitle: z.string().max(255).optional().nullable(),
     metaDescription: z.string().max(1000).optional().nullable(),
     status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
     featured: z.boolean().optional(),
     categoryId: z.number().int().positive(),
     tagIds: z.array(z.number().int().positive()).optional(),
-    authorId: z.number().int().positive().optional(), // ✅ TAMBAHIN
+    authorId: z.number().int().positive().optional(),
   }),
 });
 
@@ -56,15 +56,15 @@ export const updatePostSchema = z.object({
     title: z.string().min(1).max(255).optional(),
     slug: z.string().min(1).max(255).optional(),
     content: z.string().min(1).max(100000).optional(),
-    thumbnail: z.string().url().max(1000).optional().nullable(),
-    gallery: z.array(z.string().url().max(1000)).optional(),
+    thumbnailImageId: z.number().int().positive().optional().nullable(),
+    galleryImageIds: z.array(z.number().int().positive()).optional(),
     metaTitle: z.string().max(255).optional().nullable(),
     metaDescription: z.string().max(1000).optional().nullable(),
     status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
     featured: z.boolean().optional(),
     categoryId: z.number().int().positive().optional(),
     tagIds: z.array(z.number().int().positive()).optional(),
-    authorId: z.number().int().positive().optional(), // ✅ TAMBAHIN
+    authorId: z.number().int().positive().optional(),
   }),
 });
 

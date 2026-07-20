@@ -116,14 +116,6 @@ export const DashboardPage: React.FC = () => {
       link: '/admin/users',
     },
     {
-      title: 'Pages',
-      value: stats.totalPages,
-      icon: FileText,
-      color: 'from-purple-500/10 to-purple-500/5 text-purple-500 border-purple-500/20',
-      desc: 'Halaman website',
-      link: '/admin/pages',
-    },
-    {
       title: 'Categories',
       value: stats.totalCategories,
       icon: FileText,

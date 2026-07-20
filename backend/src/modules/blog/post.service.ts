@@ -12,12 +12,22 @@ export class PostService {
     const existing = await this.postRepository.findBySlug(data.slug);
     if (existing) throw new Error('Post with this slug already exists');
 
-    const { tagIds, ...postData } = data;
+    const { tagIds, thumbnailImageId, galleryImageIds, categoryId, ...postData } = data;
     const createData: Prisma.PostCreateInput = {
       ...postData,
       author: { connect: { id: authorId } },
-      category: { connect: { id: data.categoryId } },
+      category: { connect: { id: categoryId } },
     };
+
+    if (thumbnailImageId) {
+      createData.thumbnail = { connect: { id: thumbnailImageId } };
+    }
+
+    if (galleryImageIds && galleryImageIds.length > 0) {
+      createData.gallery = {
+        connect: galleryImageIds.map((id: number) => ({ id })),
+      };
+    }
 
     if (tagIds && tagIds.length > 0) {
       createData.tags = {
@@ -101,11 +111,23 @@ export class PostService {
       }
     }
 
-    const { tagIds, categoryId, ...updateData } = data;
+    const { tagIds, categoryId, thumbnailImageId, galleryImageIds, ...updateData } = data;
     const updateInput: Prisma.PostUpdateInput = { ...updateData };
 
     if (categoryId) {
       updateInput.category = { connect: { id: categoryId } };
+    }
+
+    if (thumbnailImageId !== undefined) {
+      updateInput.thumbnail = thumbnailImageId
+        ? { connect: { id: thumbnailImageId } }
+        : { disconnect: true };
+    }
+
+    if (galleryImageIds) {
+      updateInput.gallery = {
+        set: galleryImageIds.map((tid: number) => ({ id: tid }))
+      };
     }
 
     if (tagIds) {

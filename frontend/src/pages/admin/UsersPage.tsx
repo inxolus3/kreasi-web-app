@@ -18,7 +18,7 @@ interface UserItem {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'editor';
+  role: 'ADMIN' | 'USER';
   createdAt?: string;
 }
 
@@ -39,7 +39,7 @@ export const UsersPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'editor' as 'admin' | 'editor',
+    role: 'USER' as 'ADMIN' | 'USER',
     password: '', // ✅ TAMBAHIN untuk create
   });
 
@@ -84,7 +84,7 @@ export const UsersPage: React.FC = () => {
 
   const handleOpenAdd = () => {
     setCurrentUser(null);
-    setFormData({ name: '', email: '', role: 'editor', password: '' });
+    setFormData({ name: '', email: '', role: 'USER', password: '' });
     setIsModalOpen(true);
   };
 
@@ -267,8 +267,8 @@ export const UsersPage: React.FC = () => {
                     <td className="p-4 font-mono text-zinc-400">{u.email}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-1.5 text-xs">
-                        <Shield className={`w-4 h-4 ${u.role === 'admin' ? 'text-amber-500' : 'text-blue-400'}`} />
-                        <span className={`capitalize font-semibold ${u.role === 'admin' ? 'text-amber-500' : 'text-blue-400'}`}>
+                        <Shield className={`w-4 h-4 ${u.role === 'ADMIN' ? 'text-amber-500' : 'text-blue-400'}`} />
+                        <span className={`capitalize font-semibold ${u.role === 'ADMIN' ? 'text-amber-500' : 'text-blue-400'}`}>
                           {u.role}
                         </span>
                       </div>

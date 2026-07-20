@@ -47,7 +47,7 @@ router.post('/', authenticate, authorize(['ADMIN']), async (req, res) => {
         name,
         email,
         password: hashedPassword,
-        role: role || 'editor',
+        role: role || 'USER',
       },
       select: {
         id: true,
