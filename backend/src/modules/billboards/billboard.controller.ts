@@ -1,28 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { BillboardService } from './billboard.service';
-import { BillboardStatus } from '@prisma/client';
 
 export class BillboardController {
-  private billboardService: BillboardService;
+  constructor(private readonly billboardService: BillboardService) {}
 
-  constructor() {
-    this.billboardService = new BillboardService();
-  }
-
-  // PUBLIC APIs
   getPublicBillboards = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Public map markers only need lightweight information (latitude, longitude, basic details)
-      // We will fetch all active/available billboards (or let filters apply)
       const result = await this.billboardService.getBillboards({
         ...req.query,
-        limit: req.query.limit || '500', // Allow more markers on maps by default
+        limit: req.query.limit || '500',
       });
 
-      // Map to lightweight marker items
       const markers = result.data.map((b) => ({
         id: b.id,
-        code: b.code,
         name: b.name,
         slug: b.slug,
         latitude: b.latitude,
@@ -31,9 +21,11 @@ export class BillboardController {
         city: b.city,
         district: b.district,
         address: b.address,
-        price: b.price,
-        status: b.status,
+        traffic: b.traffic,
         thumbnail: b.thumbnail,
+        type: b.type,
+        lighting: b.lighting,
+        gallery: b.gallery || [],
       }));
 
       res.status(200).json({ status: 'success', data: markers });
@@ -45,12 +37,29 @@ export class BillboardController {
   getPublicBillboardBySlug = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const billboard = await this.billboardService.getBillboardBySlug(req.params.slug);
-      res.status(200).json({ status: 'success', data: billboard });
-    } catch (error: any) {
-      if (error.message === 'Billboard not found') {
-        res.status(404).json({ status: 'fail', message: error.message });
-        return;
-      }
+      const publicBillboard = {
+        id: billboard.id,
+        name: billboard.name,
+        slug: billboard.slug,
+        province: billboard.province,
+        city: billboard.city,
+        district: billboard.district,
+        address: billboard.address,
+        latitude: billboard.latitude,
+        longitude: billboard.longitude,
+        size: billboard.size,
+        type: billboard.type,
+        orientation: billboard.orientation,
+        lighting: billboard.lighting,
+        thumbnail: billboard.thumbnail,
+        description: billboard.description,
+        gallery: billboard.gallery,
+        traffic: billboard.traffic,
+        createdAt: billboard.createdAt,
+        updatedAt: billboard.updatedAt,
+      };
+      res.status(200).json({ status: 'success', data: publicBillboard });
+    } catch (error) {
       next(error);
     }
   };
@@ -65,28 +74,18 @@ export class BillboardController {
   };
 
   getPublicTypes = (req: Request, res: Response) => {
-    const types = this.billboardService.getTypes();
-    res.status(200).json({ status: 'success', data: types });
+    res.status(200).json({ status: 'success', data: this.billboardService.getTypes() });
   };
 
   getPublicLightings = (req: Request, res: Response) => {
-    const lightings = this.billboardService.getLightings();
-    res.status(200).json({ status: 'success', data: lightings });
+    res.status(200).json({ status: 'success', data: this.billboardService.getLightings() });
   };
 
-  // ADMIN APIs (CRUD)
   createBillboard = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const billboard = await this.billboardService.createBillboard(req.body);
       res.status(201).json({ status: 'success', data: billboard });
-    } catch (error: any) {
-      if (
-        error.message === 'Billboard with this code already exists' ||
-        error.message === 'Billboard with this slug already exists'
-      ) {
-        res.status(400).json({ status: 'fail', message: error.message });
-        return;
-      }
+    } catch (error) {
       next(error);
     }
   };
@@ -104,11 +103,7 @@ export class BillboardController {
     try {
       const billboard = await this.billboardService.getBillboardById(parseInt(req.params.id, 10));
       res.status(200).json({ status: 'success', data: billboard });
-    } catch (error: any) {
-      if (error.message === 'Billboard not found') {
-        res.status(404).json({ status: 'fail', message: error.message });
-        return;
-      }
+    } catch (error) {
       next(error);
     }
   };
@@ -118,15 +113,7 @@ export class BillboardController {
       const id = parseInt(req.params.id, 10);
       const billboard = await this.billboardService.updateBillboard(id, req.body);
       res.status(200).json({ status: 'success', data: billboard });
-    } catch (error: any) {
-      if (
-        error.message === 'Billboard not found' ||
-        error.message === 'Billboard with this code already exists' ||
-        error.message === 'Billboard with this slug already exists'
-      ) {
-        res.status(400).json({ status: 'fail', message: error.message });
-        return;
-      }
+    } catch (error) {
       next(error);
     }
   };
@@ -135,13 +122,9 @@ export class BillboardController {
     try {
       const id = parseInt(req.params.id, 10);
       const { status } = req.body;
-      const billboard = await this.billboardService.updateBillboardStatus(id, status as BillboardStatus);
+      const billboard = await this.billboardService.updateBillboardStatus(id, status as string);
       res.status(200).json({ status: 'success', data: billboard });
-    } catch (error: any) {
-      if (error.message === 'Billboard not found') {
-        res.status(404).json({ status: 'fail', message: error.message });
-        return;
-      }
+    } catch (error) {
       next(error);
     }
   };
@@ -151,16 +134,11 @@ export class BillboardController {
       const id = parseInt(req.params.id, 10);
       await this.billboardService.deleteBillboard(id);
       res.status(204).send();
-    } catch (error: any) {
-      if (error.message === 'Billboard not found') {
-        res.status(404).json({ status: 'fail', message: error.message });
-        return;
-      }
+    } catch (error) {
       next(error);
     }
   };
 
-  // UPLOAD APIs
   uploadThumbnail = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.file) {

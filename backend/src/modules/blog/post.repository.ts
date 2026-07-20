@@ -1,67 +1,55 @@
-import prisma from '../../utils/prisma';
-import { Prisma, Post } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export class PostRepository {
-  async create(data: Prisma.PostCreateInput): Promise<Post> {
-    return prisma.post.create({ 
-      data,
-      include: { author: { select: { id: true, name: true, email: true } }, category: true, tags: true }
-    });
+  async findAll(query: any) {
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const limit = Math.min(100, parseInt(query.limit, 10) || 10);
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.PostWhereInput = {};
+
+    if (query.search) {
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { content: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+    if (query.status) {
+      where.status = query.status;
+    }
+    if (query.categoryId) {
+      where.categoryId = parseInt(query.categoryId, 10);
+    }
+    if (query.featured !== undefined) {
+      where.featured = query.featured === 'true' || query.featured === true;
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          category: true,
+          author: { select: { id: true, username: true, role: true } },
+        },
+      }),
+      prisma.post.count({ where }),
+    ]);
+
+    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findMany(params: {
-    skip?: number;
-    take?: number;
-    where?: Prisma.PostWhereInput;
-    orderBy?: Prisma.PostOrderByWithRelationInput;
-  }) {
-    const { skip, take, where, orderBy } = params;
-    return prisma.post.findMany({
-      skip,
-      take,
-      where,
-      orderBy,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        thumbnail: true,
-        metaTitle: true,
-        metaDescription: true,
-        status: true,
-        featured: true,
-        createdAt: true,
-        updatedAt: true,
-        author: { select: { id: true, name: true, email: true } },
-        category: { select: { id: true, name: true, slug: true } },
-        tags: { select: { id: true, name: true, slug: true } },
-      },
-    });
-  }
-
-  async count(where?: Prisma.PostWhereInput): Promise<number> {
-    return prisma.post.count({ where });
-  }
-
-  async findById(id: number): Promise<Post | null> {
+  async findById(id: number) {
     return prisma.post.findUnique({
       where: { id },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        content: true,
-        thumbnail: true,
-        gallery: true,
-        metaTitle: true,
-        metaDescription: true,
-        status: true,
-        featured: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
         author: { select: { id: true, name: true, email: true } },
-        category: { select: { id: true, name: true, slug: true } },
-        tags: { select: { id: true, name: true, slug: true } },
+        category: true,
+        tags: true,
       },
     });
   }
@@ -69,22 +57,10 @@ export class PostRepository {
   async findBySlug(slug: string): Promise<Post | null> {
     return prisma.post.findUnique({
       where: { slug },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        content: true,
-        thumbnail: true,
-        gallery: true,
-        metaTitle: true,
-        metaDescription: true,
-        status: true,
-        featured: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
         author: { select: { id: true, name: true, email: true } },
-        category: { select: { id: true, name: true, slug: true } },
-        tags: { select: { id: true, name: true, slug: true } },
+        category: true,
+        tags: true,
       },
     });
   }
@@ -93,27 +69,15 @@ export class PostRepository {
     return prisma.post.update({
       where: { id },
       data,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        content: true,
-        thumbnail: true,
-        gallery: true,
-        metaTitle: true,
-        metaDescription: true,
-        status: true,
-        featured: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
         author: { select: { id: true, name: true, email: true } },
-        category: { select: { id: true, name: true, slug: true } },
-        tags: { select: { id: true, name: true, slug: true } },
+        category: true,
+        tags: true,
       },
     });
   }
 
-  async delete(id: number): Promise<Post> {
+  async delete(id: number) {
     return prisma.post.delete({ where: { id } });
   }
 }

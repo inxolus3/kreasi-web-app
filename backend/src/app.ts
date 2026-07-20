@@ -1,7 +1,6 @@
 import express from 'express';
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
@@ -41,11 +40,13 @@ import uploadRouter from './modules/upload/upload.routes';
 import settingRouter from './modules/settings/setting.routes';
 import pagesRouter from './modules/pages/pages.routes';
 import adminRouter from './routes/admin';
+import usersRouter from './routes/users';
+import categoriesRouter from './routes/categories';
+import tagsRouter from './routes/tags';
 import sitemapRouter from './routes/sitemap';
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger';
 
-// Helper to safely get directory name in both ES modules and bundled CommonJS environments
 const getDirname = (): string => {
   try {
     if (typeof __dirname !== 'undefined') return __dirname;
@@ -57,20 +58,19 @@ const getDirname = (): string => {
 };
 
 const baseDir = getDirname();
-
 const app = express();
 
-// Helmet Security Headers with dynamic CSP compatible with Tailwind & external images
+// Helmet Security Headers
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-        imgSrc: ["'self'", "data:", "blob:", "*"],
-        connectSrc: ["'self'", "*"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'"],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: [],
       },
@@ -80,15 +80,16 @@ app.use(
   })
 );
 
-// Configure CORS
+// CORS
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, Postman, etc.)
       if (!origin) return callback(null, true);
-      
-      const allowedOrigins = env.FRONTEND_URL === '*' ? '*' : env.FRONTEND_URL.split(',');
-      if (allowedOrigins === '*' || allowedOrigins.includes(origin)) {
+      const allowedOrigins = env.FRONTEND_URL === '*' 
+        ? (env.NODE_ENV === 'production' ? [] : '*') 
+        : env.FRONTEND_URL.split(',');
+      if (allowedOrigins === '*') return callback(null, true);
+      if (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       callback(new Error('Not allowed by CORS'));
@@ -111,18 +112,16 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(sanitizeResponseMiddleware);
 
-// Serve uploaded files via a secure controller with authentication checks
+// Uploads route with auth
 app.get('/uploads/*', (req, res) => {
   let token = '';
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+  if (req.headers.authorization?.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
   } else if (req.query.token && typeof req.query.token === 'string') {
     token = req.query.token;
   } else if (req.headers.cookie) {
     const match = req.headers.cookie.match(/(?:accessToken|token)=([^;]+)/);
-    if (match) {
-      token = match[1];
-    }
+    if (match) token = match[1];
   }
 
   let isAuthenticated = false;
@@ -130,48 +129,39 @@ app.get('/uploads/*', (req, res) => {
     try {
       verifyToken(token);
       isAuthenticated = true;
-    } catch {
-      // Token is invalid/expired
-    }
+    } catch { /* invalid token */ }
   }
 
   if (!isAuthenticated) {
-    res.status(401).json({ status: 'error', message: 'Unauthorized: Authentication required to view uploads' });
+    res.status(401).json({ status: 'error', message: 'Unauthorized' });
     return;
   }
 
   const fileSubpath = (req.params as any)[0];
   if (!fileSubpath) {
-    res.status(400).json({ status: 'error', message: 'File path is required' });
+    res.status(400).json({ status: 'error', message: 'File path required' });
     return;
   }
 
-  // Prevent path traversal
   const safeSubpath = path.normalize(fileSubpath).replace(/^(\.\.(\/|\\|$))+/, '');
   const filePath = path.join(baseDir, '../uploads', safeSubpath);
-
-  // Ensure path stays within uploads directory
   const uploadsDir = path.resolve(baseDir, '../uploads');
+
   if (!filePath.startsWith(uploadsDir)) {
-    res.status(403).json({ status: 'error', message: 'Forbidden: Access denied' });
+    res.status(403).json({ status: 'error', message: 'Forbidden' });
     return;
   }
-
   if (!fs.existsSync(filePath)) {
     res.status(404).json({ status: 'error', message: 'File not found' });
     return;
   }
-
   res.sendFile(filePath);
 });
 
-// Request logging middleware
 app.use(requestLogger);
-
-// Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-// API Routes
+// ✅ ALL API ROUTES — PASTIKAN TIDAK ADA YANG HILANG
 app.use('/api', apiLimiter);
 app.use('/api/health', healthRouter);
 app.use('/api/diagnostics', diagnosticsRouter);
@@ -181,11 +171,14 @@ app.use('/api/blog', blogRouter);
 app.use('/api/v1', billboardRouter);
 app.use('/api/v1', uploadRouter);
 app.use('/api/v1', settingRouter);
-app.use('/api/v1', pagesRouter);
+app.use('/api/v1', pagesRouter);           // /api/v1/pages/...
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/categories', categoriesRouter);
+app.use('/api/v1/tags', tagsRouter);
 app.use('/', sitemapRouter);
 
-// Sentry error handler (HARUS setelah semua route, sebelum generic error handler)
+// Sentry error handler
 if (env.SENTRY_DSN) {
   if (typeof Sentry.setupExpressErrorHandler === 'function') {
     Sentry.setupExpressErrorHandler(app);
@@ -197,15 +190,28 @@ if (env.SENTRY_DSN) {
 // Global Error Handler
 app.use(errorHandler);
 
-// Serve frontend static files
+// Frontend static files
 const frontendPath = path.join(baseDir, '../../frontend/dist');
-app.use(express.static(frontendPath));
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  } else {
-    res.status(404).json({ message: 'API route not found' });
-  }
-});
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    } else {
+      res.status(404).json({ message: 'API route not found' });
+    }
+  });
+} else {
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.status(200).json({
+        status: 'ok',
+        message: 'Backend running. Frontend build not found.',
+      });
+    } else {
+      res.status(404).json({ message: 'API route not found' });
+    }
+  });
+}
 
 export default app;

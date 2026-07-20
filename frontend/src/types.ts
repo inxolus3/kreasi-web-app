@@ -42,8 +42,6 @@ export interface ProcessStep {
   description: string;
 }
 
-export type BillboardStatus = 'AVAILABLE' | 'BOOKED' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE';
-
 export interface Billboard {
   id: number;
   code: string;
@@ -55,14 +53,11 @@ export interface Billboard {
   address: string;
   latitude: number;
   longitude: number;
-  googleMapsUrl?: string | null;
   size: string;
   type: 'Baliho' | 'Billboard';
   orientation: 'Satu Sisi' | 'Dua Sisi';
   lighting: 'Back Light' | 'Front Light' | 'Non Light';
   traffic?: string | null;
-  price: number;
-  status: BillboardStatus;
   description?: string | null;
   thumbnail?: string | null;
   gallery: string[];

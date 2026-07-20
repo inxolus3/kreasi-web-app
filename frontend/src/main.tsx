@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import AppRouter from './AppRouter';
 import { AuthProvider } from './contexts/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 import 'yet-another-react-lightbox/styles.css';
 
@@ -30,7 +31,8 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
     },
   },
 });
@@ -40,12 +42,13 @@ createRoot(document.getElementById('root')!).render(
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <AuthProvider>
-            <AppRouter />
-          </AuthProvider>
+          <ErrorBoundary> {/* ← WRAP AuthProvider */}
+            <AuthProvider>
+              <AppRouter />
+            </AuthProvider>
+          </ErrorBoundary>
         </BrowserRouter>
       </QueryClientProvider>
     </HelmetProvider>
   </StrictMode>,
 );
-

@@ -44,7 +44,6 @@ describe('Billboard API', () => {
           orientation: 'Satu Sisi',
           lighting: 'Front Light',
           traffic: 'HIGH',
-          googleMapsUrl: 'https://maps.google.com',
           availableFrom: new Date(),
           availableUntil: new Date(),
           createdAt: new Date(),
@@ -62,7 +61,9 @@ describe('Billboard API', () => {
       expect(response.status).toBe(200);
       expect(response.body.status).toBe('success');
       expect(response.body.data).toBeInstanceOf(Array);
-      expect(response.body.data[0]).toHaveProperty('code', 'BB-001');
+      expect(response.body.data[0]).not.toHaveProperty('code');
+      expect(response.body.data[0]).not.toHaveProperty('status');
+      expect(response.body.data[0]).not.toHaveProperty('price');
       expect(response.body.data[0]).toHaveProperty('latitude', -6.2182);
       expect(response.body.data[0]).not.toHaveProperty('gallery');
       expect(response.body.data[0]).not.toHaveProperty('size');
@@ -91,7 +92,6 @@ describe('Billboard API', () => {
         orientation: 'Satu Sisi',
         lighting: 'Front Light',
         traffic: 'HIGH',
-        googleMapsUrl: 'https://maps.google.com',
         availableFrom: new Date(),
         availableUntil: new Date(),
         createdAt: new Date(),
@@ -107,6 +107,9 @@ describe('Billboard API', () => {
       expect(response.body.data).toHaveProperty('slug', 'main-street-billboard');
       expect(response.body.data).toHaveProperty('gallery');
       expect(response.body.data).toHaveProperty('size');
+      expect(response.body.data).not.toHaveProperty('code');
+      expect(response.body.data).not.toHaveProperty('status');
+      expect(response.body.data).not.toHaveProperty('price');
     });
 
     it('should return 404 if billboard does not exist', async () => {

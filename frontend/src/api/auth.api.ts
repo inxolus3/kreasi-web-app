@@ -8,12 +8,12 @@ import { authClient } from './client';
 export const authApi = {
   login: async (credentials: any) => {
     const response = await authClient.post('/login', credentials);
+    // Server sets HttpOnly cookies; return user payload only
     return response.data;
   },
 
   logout: async () => {
     const response = await authClient.post('/logout');
-    localStorage.removeItem('kreasi_auth_token');
     return response.data;
   },
 

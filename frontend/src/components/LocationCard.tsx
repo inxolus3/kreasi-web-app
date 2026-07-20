@@ -15,53 +15,8 @@ interface LocationCardProps {
 }
 
 export default function LocationCard({ billboard, isSelected, onSelect, onFocusMap }: LocationCardProps) {
-  // Format price helper
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(price);
-  };
-
-  // Status helper
-  const getStatusBadge = (status: Billboard['status']) => {
-    switch (status) {
-      case 'AVAILABLE':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-500/10 rounded-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Tersedia
-          </span>
-        );
-      case 'BOOKED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-500/10 rounded-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            Disewa
-          </span>
-        );
-      case 'MAINTENANCE':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-500/10 rounded-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Perawatan
-          </span>
-        );
-      case 'INACTIVE':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-slate-50 dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-white/5 rounded-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-            Tidak Aktif
-          </span>
-        );
-    }
-  };
-
-  // Direct WA Contact pre-filled link
-  const getWhatsAppLink = (code: string, name: string) => {
-    const text = `Halo Kreasi Advertising, saya tertarik dengan lokasi Billboard Kode [${code}] - ${name}. Apakah lokasi tersebut tersedia untuk disewa?`;
+  const getWhatsAppLink = (name: string) => {
+    const text = `Halo Kreasi Advertising, saya tertarik dengan lokasi billboard ${name}. Apakah lokasi tersebut tersedia untuk disewa?`;
     return `https://wa.me/628116682226?text=${encodeURIComponent(text)}`;
   };
 
@@ -85,14 +40,6 @@ export default function LocationCard({ billboard, isSelected, onSelect, onFocusM
           aspectRatio="aspect-[4/3]"
           className="group-hover:scale-105 transition-transform duration-500"
         />
-        <div className="absolute top-3 left-3 z-10" id={`status-badge-${billboard.id}`}>
-          {getStatusBadge(billboard.status)}
-        </div>
-        <div className="absolute bottom-3 right-3 z-10" id={`code-badge-${billboard.id}`}>
-          <span className="px-2.5 py-1 text-[10px] font-bold tracking-widest uppercase bg-slate-950/80 text-white backdrop-blur-sm border border-white/10 rounded-none">
-            {billboard.code}
-          </span>
-        </div>
       </div>
 
       {/* 2. Detail Body */}
@@ -135,14 +82,19 @@ export default function LocationCard({ billboard, isSelected, onSelect, onFocusM
 
         {/* 3. Pricing and Bottom CTA Row */}
         <div>
-          <div className="mb-4" id={`billboard-price-${billboard.id}`}>
+          <div className="mb-4" id={`billboard-contact-${billboard.id}`}>
             <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-neutral-500 mb-0.5">
-              Tarif Mulai Dari
+              Hubungi untuk informasi harga
             </div>
-            <div className="text-base font-black text-brand dark:text-brand-secondary">
-              {formatPrice(billboard.price)}
-              <span className="text-xs font-bold text-slate-400 dark:text-neutral-500 lowercase tracking-normal"> / tahun</span>
-            </div>
+            <a
+              href={getWhatsAppLink(billboard.name)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-brand text-white dark:bg-brand-secondary dark:text-slate-950 rounded-none"
+            >
+              <MessageSquare className="w-3 h-3" />
+              WhatsApp
+            </a>
           </div>
 
           <div className="grid grid-cols-2 gap-2" id={`billboard-actions-${billboard.id}`}>
@@ -161,7 +113,7 @@ export default function LocationCard({ billboard, isSelected, onSelect, onFocusM
 
             {/* Action 2: WA Contact */}
             <a
-              href={getWhatsAppLink(billboard.code, billboard.name)}
+              href={getWhatsAppLink(billboard.name)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-1.5 bg-brand hover:bg-brand-hover dark:bg-brand-secondary dark:hover:bg-brand-secondary-hover text-white dark:text-slate-950 px-3 py-2.5 text-[9px] font-black uppercase tracking-wider transition-colors"

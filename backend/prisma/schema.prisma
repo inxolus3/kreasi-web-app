@@ -82,38 +82,27 @@ model Post {
   @@index([featured])
 }
 
-enum BillboardStatus {
-  AVAILABLE
-  BOOKED
-  OCCUPIED
-  MAINTENANCE
-  INACTIVE
-}
-
 model Billboard {
-  id             Int             @id @default(autoincrement())
-  code           String          @unique
-  name           String
-  slug           String          @unique
-  province       String
-  city           String
-  district       String
-  address        String          @db.Text
-  latitude       Float
-  longitude      Float
-  googleMapsUrl  String?         @db.Text
-  size           String
-  type           String
-  orientation    String
-  lighting       String
-  traffic        String?
-  price          Float
-  status         BillboardStatus @default(AVAILABLE)
-  description    String?         @db.Text
-  thumbnail      String?
-  gallery        String[]
+  id              Int       @id @default(autoincrement())
+  code            String    @unique
+  name            String
+  slug            String    @unique
+  province        String
+  city            String
+  district        String
+  address         String    @db.Text
+  latitude        Float
+  longitude       Float
+  size            String
+  type            String
+  orientation     String
+  lighting        String
+  traffic         String?
+  description     String?   @db.Text
+  thumbnail       String?
+  gallery         String[]
   metaTitle       String?
-  metaDescription String?  @db.Text
+  metaDescription String?   @db.Text
   metaKeywords    String?
   ogImage         String?
   availableFrom  DateTime?
@@ -171,33 +160,33 @@ model Page {
 }
 
 model PageSection {
-  id         Int            @id @default(autoincrement())
+  id         Int           @id @default(autoincrement())
   pageId     Int?
-  page       Page?          @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page       Page?         @relation(fields: [pageId], references: [id], onDelete: Cascade)
   templateId Int?
-  template   PageTemplate?  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  template   PageTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
   order      Int
-  type       String         // e.g. "section", "hero", "container", etc.
-  props      String         @db.Text // JSON properties
-  styles     String         @db.Text // JSON styles
+  type       String // e.g. "section", "hero", "container", etc.
+  props      String        @db.Text // JSON properties
+  styles     String        @db.Text // JSON styles
   blocks     PageBlock[]
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 }
 
 model PageBlock {
-  id         String       @id
-  sectionId  Int
-  section    PageSection  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  parentId   String?
-  parent     PageBlock?   @relation("BlockNesting", fields: [parentId], references: [id], onDelete: Cascade)
-  children   PageBlock[]  @relation("BlockNesting")
-  order      Int
-  type       String       // Hero, Heading, Paragraph, Button, Image, Gallery, Video, Divider, Spacer, Container, Columns, Card, Feature List, Pricing, FAQ, Accordion, Testimonials, CTA, Google Maps, HTML, Rich Text, Contact Form, Embed
-  props      String       @db.Text // JSON props
-  styles     String       @db.Text // JSON styles
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id        String      @id
+  sectionId Int
+  section   PageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    PageBlock?  @relation("BlockNesting", fields: [parentId], references: [id], onDelete: Cascade)
+  children  PageBlock[] @relation("BlockNesting")
+  order     Int
+  type      String // Hero, Heading, Paragraph, Button, Image, Gallery, Video, Divider, Spacer, Container, Columns, Card, Feature List, Pricing, FAQ, Accordion, Testimonials, CTA, Google Maps, HTML, Rich Text, Contact Form, Embed
+  props     String      @db.Text // JSON props
+  styles    String      @db.Text // JSON styles
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
 model PageVersion {
@@ -211,7 +200,7 @@ model PageVersion {
 
 model PageTemplate {
   id          Int           @id @default(autoincrement())
-  name        String        // Landing Page, Company Profile, About, etc.
+  name        String // Landing Page, Company Profile, About, etc.
   slug        String        @unique
   description String?
   thumbnail   String?
@@ -222,8 +211,8 @@ model PageTemplate {
 
 model GlobalComponent {
   id        Int      @id @default(autoincrement())
-  name      String   // Header, Footer, Navbar, CTA
-  type      String   // "header", "footer", "navbar", "cta"
+  name      String // Header, Footer, Navbar, CTA
+  type      String // "header", "footer", "navbar", "cta"
   props     String   @db.Text // JSON
   styles    String   @db.Text // JSON
   createdAt DateTime @default(now())
@@ -237,4 +226,3 @@ model ThemeSetting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-

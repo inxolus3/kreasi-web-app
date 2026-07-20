@@ -7,10 +7,8 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster';
-import { Billboard, BillboardStatus } from '../types';
-import { 
-  MapPin, Maximize2, Lightbulb, Navigation, Eye, X, Compass, CheckCircle, ChevronRight, ImageIcon
-} from 'lucide-react';
+import { Billboard } from '../types';
+import { MapPin, Maximize2, Lightbulb, Navigation, Eye, X, Compass, CheckCircle, ChevronRight, ImageIcon, MessageSquare} from 'lucide-react';
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 
@@ -23,31 +21,12 @@ interface BillboardMapProps {
   zoom?: number;
 }
 
-// Utility to create custom status-colored marker icon
-const createCustomIcon = (status: BillboardStatus, isSelected: boolean) => {
-  let colorClass = 'bg-emerald-500';
-  let pulseColorClass = 'bg-emerald-400';
-  let borderClass = 'border-emerald-200 dark:border-emerald-950';
-  
-  if (status === 'BOOKED') {
-    colorClass = 'bg-amber-500'; // Yellow
-    pulseColorClass = 'bg-amber-400';
-    borderClass = 'border-amber-200 dark:border-amber-950';
-  } else if (status === 'OCCUPIED') {
-    colorClass = 'bg-rose-500'; // Red
-    pulseColorClass = 'bg-rose-400';
-    borderClass = 'border-rose-200 dark:border-rose-950';
-  } else if (status === 'MAINTENANCE') {
-    colorClass = 'bg-slate-400'; // Gray
-    pulseColorClass = 'bg-slate-300';
-    borderClass = 'border-slate-200 dark:border-slate-800';
-  } else if (status === 'INACTIVE') {
-    colorClass = 'bg-slate-400'; // Gray
-    pulseColorClass = 'bg-slate-300';
-    borderClass = 'border-slate-200 dark:border-slate-800';
-  }
+// Utility to create custom marker icon
+const createCustomIcon = (isSelected: boolean) => {
+  const colorClass = 'bg-brand';
+  const pulseColorClass = 'bg-brand/80';
+  const borderClass = 'border-brand/20 dark:border-brand-secondary/40';
 
-  // Selection state
   const ringStyles = isSelected 
     ? 'ring-[4px] ring-brand dark:ring-brand-secondary scale-125 shadow-xl z-[999]' 
     : 'shadow-md scale-100 hover:scale-110';
@@ -57,7 +36,7 @@ const createCustomIcon = (status: BillboardStatus, isSelected: boolean) => {
     html: `
       <div class="relative flex items-center justify-center w-8 h-8 rounded-full ${borderClass} border-2 bg-white dark:bg-[#070B19] transition-all duration-300 ${ringStyles}">
         <span class="absolute w-2.5 h-2.5 rounded-full ${colorClass}"></span>
-        ${status === 'AVAILABLE' || isSelected ? `<span class="absolute w-2.5 h-2.5 rounded-full ${pulseColorClass} animate-ping opacity-75"></span>` : ''}
+        ${isSelected ? `<span class="absolute w-2.5 h-2.5 rounded-full ${pulseColorClass} animate-ping opacity-75"></span>` : ''}
       </div>
     `,
     iconSize: [32, 32],
@@ -118,17 +97,17 @@ function ClusteredMarkers({
   onSelect: (billboard: Billboard) => void;
 }) {
   const map = useMap();
-  const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
+  const clusterGroupRef = useRef<any>(null);
   const markersMapRef = useRef<{ [id: number]: L.Marker }>({});
 
   useEffect(() => {
     // Instantiate Marker Cluster Group once
     if (!clusterGroupRef.current) {
-      clusterGroupRef.current = L.markerClusterGroup({
+      clusterGroupRef.current = (L as any).markerClusterGroup({
         showCoverageOnHover: false,
         spiderfyOnMaxZoom: true,
         maxClusterRadius: 40,
-        iconCreateFunction: (cluster) => {
+        iconCreateFunction: (cluster: any) => {
           const count = cluster.getChildCount();
           return L.divIcon({
             html: `
@@ -151,7 +130,7 @@ function ClusteredMarkers({
     // Generate markers
     billboards.forEach((bb) => {
       const isSel = selectedBillboard?.id === bb.id;
-      const icon = createCustomIcon(bb.status, isSel);
+      const icon = createCustomIcon(isSel);
       const marker = L.marker([bb.latitude, bb.longitude], { icon });
 
       marker.on('click', () => {
@@ -176,7 +155,7 @@ function ClusteredMarkers({
       const marker = markersMapRef.current[bb.id];
       if (marker) {
         const isSel = selectedBillboard?.id === bb.id;
-        marker.setIcon(createCustomIcon(bb.status, isSel));
+        marker.setIcon(createCustomIcon(isSel));
         if (isSel) {
           try {
             clusterGroup.zoomToShowLayer(marker, () => {
@@ -212,47 +191,9 @@ export default function BillboardMap({
 
   const tileLayerAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(price);
-  };
-
-  const getStatusBadge = (status: BillboardStatus) => {
-    switch (status) {
-      case 'AVAILABLE':
-        return (
-          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-2 py-0.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-            ● Tersedia
-          </span>
-        );
-      case 'BOOKED':
-        return (
-          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20">
-            ● Dibooking
-          </span>
-        );
-      case 'OCCUPIED':
-        return (
-          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-2 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20">
-            ● Disewa
-          </span>
-        );
-      case 'MAINTENANCE':
-        return (
-          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-2 py-0.5 bg-slate-500/10 text-slate-500 border border-slate-500/20">
-            ● Perawatan
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-2 py-0.5 bg-slate-500/10 text-slate-500 border border-slate-500/20">
-            ● Tidak Aktif
-          </span>
-        );
-    }
+  const getWhatsAppLink = (name: string) => {
+    const text = `Halo Kreasi Advertising, saya tertarik dengan lokasi billboard ${name}. Apakah lokasi tersebut tersedia untuk disewa?`;
+    return `https://wa.me/628116682226?text=${encodeURIComponent(text)}`;
   };
 
   const getDirectionsUrl = (lat: number, lng: number) => {
@@ -305,9 +246,8 @@ export default function BillboardMap({
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
               <span className="font-mono text-[10px] font-black text-brand dark:text-brand-secondary uppercase tracking-widest block mb-0.5">
-                KODE: {selectedBillboard.code}
+                {selectedBillboard.type}
               </span>
-              {getStatusBadge(selectedBillboard.status)}
             </div>
             <button
               onClick={() => onSelectBillboard(null)}
@@ -377,35 +317,30 @@ export default function BillboardMap({
             </div>
           </div>
 
-          {/* Pricing and Actions Footer */}
+          {/* Actions Footer */}
           <div className="pt-3 border-t border-slate-150 dark:border-white/5 flex flex-col gap-3">
-            <div className="flex items-end justify-between">
-              <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wide">Tarif Mulai</span>
-              <span className="text-sm font-black text-brand dark:text-brand-secondary">
-                {formatPrice(selectedBillboard.price)}
-              </span>
+            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-neutral-500">
+              Hubungi untuk informasi harga
             </div>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={handleScrollToDetail}
-                className="w-full flex items-center justify-center gap-1 border border-slate-250 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 py-2 px-2.5 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-white transition-colors cursor-pointer"
-                id="btn-view-details-desktop"
-              >
-                Detail
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-              <a
-                href={getDirectionsUrl(selectedBillboard.latitude, selectedBillboard.longitude)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-1 bg-brand text-white dark:bg-brand-secondary dark:text-slate-950 hover:opacity-90 py-2 px-2.5 text-[10px] font-black uppercase tracking-widest transition-opacity"
-                id="btn-maps-desktop"
-              >
-                <Navigation className="w-3 h-3" />
-                Rute Peta
-              </a>
-            </div>
+            <a
+              href={getWhatsAppLink(selectedBillboard.name)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-2 bg-brand text-white dark:bg-brand-secondary dark:text-slate-950 py-3 px-3 text-[10px] font-black uppercase tracking-widest transition-opacity"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              WhatsApp
+            </a>
+            <a
+              href={getDirectionsUrl(selectedBillboard.latitude, selectedBillboard.longitude)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-1 border border-slate-250 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 py-2 px-2.5 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-white transition-colors"
+              id="btn-maps-desktop"
+            >
+              <Navigation className="w-3 h-3" />
+              Rute Peta
+            </a>
           </div>
         </div>
       )}
@@ -423,9 +358,8 @@ export default function BillboardMap({
           <div className="flex items-start justify-between gap-4 mb-3 shrink-0">
             <div>
               <span className="font-mono text-[10px] font-black text-brand dark:text-brand-secondary uppercase tracking-widest block mb-0.5">
-                KODE: {selectedBillboard.code}
+                {selectedBillboard.type}
               </span>
-              {getStatusBadge(selectedBillboard.status)}
             </div>
             <button
               onClick={() => onSelectBillboard(null)}
@@ -500,36 +434,26 @@ export default function BillboardMap({
 
           {/* Footer Actions */}
           <div className="pt-3 border-t border-slate-150 dark:border-white/5 flex flex-col gap-3 shrink-0">
-            <div className="flex items-end justify-between">
-              <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wide">Tarif Sewa</span>
-              <span className="text-sm font-black text-brand dark:text-brand-secondary">
-                {formatPrice(selectedBillboard.price)}
-              </span>
-            </div>
+            <a
+              href={getWhatsAppLink(selectedBillboard.name)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-2 bg-brand text-white dark:bg-brand-secondary dark:text-slate-950 py-3 px-3 text-[10px] font-black uppercase tracking-widest transition-opacity"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              WhatsApp
+            </a>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  onSelectBillboard(selectedBillboard);
-                  handleScrollToDetail();
-                }}
-                className="w-full flex items-center justify-center gap-1 border border-slate-250 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-white transition-colors cursor-pointer"
-                id="btn-view-details-mobile"
-              >
-                Detail Lengkap
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-              <a
-                href={getDirectionsUrl(selectedBillboard.latitude, selectedBillboard.longitude)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-1 bg-brand text-white dark:bg-brand-secondary dark:text-slate-950 hover:opacity-90 py-2.5 px-3 text-[10px] font-black uppercase tracking-widest transition-opacity"
-                id="btn-maps-mobile"
-              >
-                <Navigation className="w-3 h-3" />
-                Petunjuk Rute
-              </a>
-            </div>
+            <a
+              href={getDirectionsUrl(selectedBillboard.latitude, selectedBillboard.longitude)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-1 border border-slate-250 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 py-2.5 px-3 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-white transition-colors"
+              id="btn-maps-mobile"
+            >
+              <Navigation className="w-3 h-3" />
+              Petunjuk Rute
+            </a>
           </div>
         </div>
       )}

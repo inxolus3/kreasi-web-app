@@ -1,103 +1,152 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi } from '../api/auth.api';
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-export interface User {
-  id: string;
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authClient } from '../api/client';
+
+interface User {
+  id: number;
   email: string;
   name: string;
   role: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
+  error: string | null;
+  clearError: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const checkAuth = async () => {
-    const token = localStorage.getItem('kreasi_auth_token');
-    if (!token) {
-      setIsLoading(false);
-      setIsAuthenticated(false);
-      setUser(null);
-      return;
-    }
+  const clearError = useCallback(() => setError(null), []);
 
+  const getErrorMessage = useCallback((err: any): string => {
+    if (err?.response?.data?.message) return String(err.response.data.message);
+    if (err?.response?.data?.error) return String(err.response.data.error);
+    if (err?.message) return String(err.message);
+    if (typeof err === 'string') return err;
+    return 'Terjadi kesalahan. Silakan coba lagi.';
+  }, []);
+
+  const checkAuth = useCallback(async () => {
     try {
-      const data = await authApi.getMe();
-      // Assume getMe returns the user object directly, or wrapped in { user }
-      const currentUser = data.user || data;
-      setUser(currentUser);
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Check auth failed:', error);
-      localStorage.removeItem('kreasi_auth_token');
-      setUser(null);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const data = await authApi.login({ email, password });
-      if (data && data.token) {
-        localStorage.setItem('kreasi_auth_token', data.token);
-        const currentUser = data.user || data;
-        setUser(currentUser);
-        setIsAuthenticated(true);
+      setIsLoading(true);
+      clearError();
+      
+      const response = await authClient.get('/me');
+      const userData = response.data?.data || response.data;
+      
+      if (userData && typeof userData === 'object') {
+        setUser(userData);
       } else {
-        throw new Error('No token returned from login');
+        setUser(null);
       }
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    setIsLoading(true);
-    try {
-      await authApi.logout();
-    } catch (error) {
-      console.error('Logout request failed:', error);
-    } finally {
-      localStorage.removeItem('kreasi_auth_token');
+    } catch (err: any) {
+      const message = getErrorMessage(err);
+      
+      if (import.meta.env.DEV) {
+        console.log(`[Auth Check] ${message}`);
+      }
+      
       setUser(null);
-      setIsAuthenticated(false);
+      
+      if (err?.response?.status === 401) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
+    } finally {
       setIsLoading(false);
     }
-  };
+  }, [clearError, getErrorMessage]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      clearError();
+      
+      const response = await authClient.post('/login', { email, password });
+      const responseData = response.data?.data || response.data;
+      
+      // ✅ Simpan accessToken ke localStorage
+      if (responseData?.accessToken) {
+        localStorage.setItem('accessToken', String(responseData.accessToken));
+      }
+      
+      setUser(responseData?.user || responseData);
+      navigate('/admin/dashboard', { replace: true });
+    } catch (err: any) {
+      const message = getErrorMessage(err);
+      setError(message);
+      
+      if (import.meta.env.DEV) {
+        console.log(`[Login] ${message}`);
+      }
+      
+      throw new Error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [navigate, clearError, getErrorMessage]);
+
+  const logout = useCallback(async () => {
+    try {
+      await authClient.post('/logout');
+    } catch (err: any) {
+      const message = getErrorMessage(err);
+      if (import.meta.env.DEV) {
+        console.log(`[Logout] ${message}`);
+      }
+    } finally {
+      setUser(null);
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      navigate('/admin/login', { replace: true });
+    }
+  }, [navigate, getErrorMessage]);
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [checkAuth]);
+
+  const value: AuthContextType = {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    isAdmin: user?.role === 'ADMIN',
+    login,
+    logout,
+    error,
+    clearError,
+  };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, checkAuth }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
 };

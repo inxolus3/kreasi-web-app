@@ -1,3 +1,8 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState, useEffect } from 'react';
 import { apiV1Client } from '../../api/client';
 import {
@@ -7,32 +12,35 @@ import {
   MapPin,
   Edit2,
   Trash2,
-  Eye,
   X,
   AlertCircle,
-  Check
+  Check,
+  Link as LinkIcon
 } from 'lucide-react';
 
 interface Billboard {
   id: number;
   name: string;
-  slug?: string;
-  address?: string;
+  slug: string;
+  code: string;
+  address: string;
   province: string;
   city: string;
-  lat?: number;
-  lng?: number;
-  latitude?: number;
-  longitude?: number;
-  size?: string;
-  type?: string;
-  side?: number;
-  orientation?: string;
-  lighting?: string;
+  district: string;
+  latitude: number;
+  longitude: number;
+  size: string;
+  type: string;
+  orientation: string;
+  lighting: string;
+  traffic?: string;
+  description?: string;
   thumbnail?: string;
   gallery?: string[];
-  price?: number;
-  status: 'AVAILABLE' | 'RENTED' | 'MAINTENANCE';
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  ogImage?: string;
 }
 
 export const BillboardsPage: React.FC = () => {
@@ -40,7 +48,8 @@ export const BillboardsPage: React.FC = () => {
   const [filteredBillboards, setFilteredBillboards] = useState<Billboard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [lightingFilter, setLightingFilter] = useState('ALL');
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,72 +60,37 @@ export const BillboardsPage: React.FC = () => {
   // Form States
   const [formData, setFormData] = useState<Partial<Billboard>>({
     name: '',
+    code: '',
+    slug: '',
     province: '',
     city: '',
+    district: '',
     address: '',
     size: '',
     type: 'Billboard',
     orientation: 'Satu Sisi',
     lighting: 'Front Light',
-    thumbnail: '',
-    gallery: [],
     latitude: 0,
     longitude: 0,
-    price: 0,
-    status: 'AVAILABLE',
+    thumbnail: '',
+    gallery: [],
+    traffic: '',
+    description: '',
   });
 
   const fetchBillboards = async () => {
     setIsLoading(true);
     try {
-      // Fetch from API
       const response = await apiV1Client.get('/public/billboards');
       const data = response.data?.data || response.data || [];
       setBillboards(data);
       setFilteredBillboards(data);
-    } catch (err) {
-      console.error('Failed to fetch billboards:', err);
-      // Fallback data for stellar mock CMS experience in case dev database is offline
-      const mockData: Billboard[] = [
-        {
-          id: 1,
-          name: 'Billboard Jl. Sudirman KM 5',
-          province: 'DKI Jakarta',
-          city: 'Jakarta Selatan',
-          address: 'Jl. Jend. Sudirman Kav 21',
-          size: '4m x 8m',
-          type: 'LED Billboard',
-          orientation: 'Vertical',
-          price: 15000000,
-          status: 'AVAILABLE',
-        },
-        {
-          id: 2,
-          name: 'Bando Gatsu Flyover Tomang',
-          province: 'DKI Jakarta',
-          city: 'Jakarta Barat',
-          address: 'Flyover Tomang Raya Sisi Barat',
-          size: '10m x 5m',
-          type: 'Bando Jalan',
-          orientation: 'Horizontal',
-          price: 25000000,
-          status: 'RENTED',
-        },
-        {
-          id: 3,
-          name: 'Baliho Simpang Dago',
-          province: 'Jawa Barat',
-          city: 'Bandung',
-          address: 'Jl. Ir. H. Juanda No. 120',
-          size: '5m x 10m',
-          type: 'Baliho',
-          orientation: 'Vertical',
-          price: 12000000,
-          status: 'AVAILABLE',
-        },
-      ];
-      setBillboards(mockData);
-      setFilteredBillboards(mockData);
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Gagal memuat data billboard';
+      console.error(`[Billboards] ${message}`);
+      triggerAlert('error', message);
+      setBillboards([]);
+      setFilteredBillboards([]);
     } finally {
       setIsLoading(false);
     }
@@ -139,37 +113,73 @@ export const BillboardsPage: React.FC = () => {
       );
     }
 
-    if (statusFilter !== 'ALL') {
-      result = result.filter((b) => b.status === statusFilter);
+    if (typeFilter !== 'ALL') {
+      result = result.filter((b) => (b.type || '').toLowerCase() === typeFilter.toLowerCase());
+    }
+
+    if (lightingFilter !== 'ALL') {
+      result = result.filter((b) => (b.lighting || '').toLowerCase() === lightingFilter.toLowerCase());
     }
 
     setFilteredBillboards(result);
-  }, [searchTerm, statusFilter, billboards]);
+  }, [searchTerm, billboards, typeFilter, lightingFilter]);
+
+  const uniqueTypes = React.useMemo(() => {
+    const s = new Set<string>();
+    billboards.forEach((b) => b.type && s.add(b.type));
+    return Array.from(s);
+  }, [billboards]);
+
+  const uniqueLightings = React.useMemo(() => {
+    const s = new Set<string>();
+    billboards.forEach((b) => b.lighting && s.add(b.lighting));
+    return Array.from(s);
+  }, [billboards]);
+
+  const generateSlug = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .substring(0, 50);
+  };
+
+  const generateCode = (name: string): string => {
+    const prefix = name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `${prefix}-${random}`;
+  };
 
   const handleOpenAdd = () => {
     setCurrentBillboard(null);
     setFormData({
       name: '',
+      code: '',
+      slug: '',
       province: 'DKI Jakarta',
       city: 'Jakarta',
+      district: '',
       address: '',
       size: '4m x 8m',
       type: 'Billboard',
       orientation: 'Satu Sisi',
       lighting: 'Front Light',
-      thumbnail: '',
-      gallery: [],
       latitude: -6.2088,
       longitude: 106.8456,
-      price: 10000000,
-      status: 'AVAILABLE',
+      thumbnail: '',
+      gallery: [],
+      traffic: '',
+      description: '',
     });
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (billboard: Billboard) => {
     setCurrentBillboard(billboard);
-    setFormData({ ...billboard });
+    setFormData({
+      ...billboard,
+      gallery: billboard.gallery || [],
+    });
     setIsModalOpen(true);
   };
 
@@ -180,57 +190,98 @@ export const BillboardsPage: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
+    if (name === 'name' && !currentBillboard) {
+      const newSlug = generateSlug(value);
+      const newCode = generateCode(value);
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        slug: newSlug,
+        code: newCode,
+      }));
+    } else if (name === 'latitude' || name === 'longitude') {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: parseFloat(value) || 0,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const urls = e.target.value.split('\n').filter(s => s.trim() !== '');
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'price' ? parseFloat(value) || 0 : value,
+      gallery: urls,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // ✅ Filter valid URLs only
+    const validGallery = (formData.gallery || []).filter((url: string) => 
+      url && url.trim() !== '' && url.startsWith('http')
+    );
+
+    const payload = {
+      name: formData.name,
+      code: formData.code || generateCode(formData.name || ''),
+      slug: formData.slug || generateSlug(formData.name || ''),
+      province: formData.province,
+      city: formData.city,
+      district: formData.district || '',
+      address: formData.address || '',
+      size: formData.size,
+      type: formData.type,
+      orientation: formData.orientation,
+      lighting: formData.lighting,
+      latitude: formData.latitude || 0,
+      longitude: formData.longitude || 0,
+      thumbnail: formData.thumbnail && formData.thumbnail.trim() !== '' && formData.thumbnail.startsWith('http')
+        ? formData.thumbnail
+        : null,
+      gallery: validGallery.length > 0 ? validGallery : [],
+      traffic: formData.traffic || null,
+      description: formData.description || null,
+      metaTitle: formData.metaTitle || null,
+      metaDescription: formData.metaDescription || null,
+      metaKeywords: formData.metaKeywords || null,
+      ogImage: formData.ogImage || null,
+    };
+
+    console.log('Payload:', payload);
+
     try {
       if (currentBillboard) {
-        // Edit flow
-        try {
-          await apiV1Client.put(`/billboards/${currentBillboard.id}`, formData);
-        } catch {
-          // Fallback to local mutation if API route has permissions/database lockouts
-        }
-        setBillboards((prev) =>
-          prev.map((b) => (b.id === currentBillboard.id ? ({ ...b, ...formData } as Billboard) : b))
-        );
+        await apiV1Client.put(`/billboards/${currentBillboard.id}`, payload);
         triggerAlert('success', `Billboard "${formData.name}" berhasil diperbarui.`);
       } else {
-        // Create flow
-        const newId = billboards.length > 0 ? Math.max(...billboards.map((b) => b.id)) + 1 : 1;
-        const newBillboard = { id: newId, ...formData } as Billboard;
-        try {
-          await apiV1Client.post('/billboards', formData);
-        } catch {
-          // Fallback
-        }
-        setBillboards((prev) => [newBillboard, ...prev]);
+        await apiV1Client.post('/billboards', payload);
         triggerAlert('success', `Billboard "${formData.name}" berhasil ditambahkan.`);
       }
+      await fetchBillboards();
       setIsModalOpen(false);
     } catch (err: any) {
-      triggerAlert('error', `Gagal menyimpan: ${err.message || 'Error tidak diketahui'}`);
+      const message = err.response?.data?.message || err.message || 'Gagal menyimpan';
+      triggerAlert('error', message);
     }
   };
 
   const handleDelete = async () => {
     if (!currentBillboard) return;
     try {
-      try {
-        await apiV1Client.delete(`/billboards/${currentBillboard.id}`);
-      } catch {
-        // Fallback
-      }
-      setBillboards((prev) => prev.filter((b) => b.id !== currentBillboard.id));
+      await apiV1Client.delete(`/billboards/${currentBillboard.id}`);
+      await fetchBillboards();
       triggerAlert('success', `Billboard "${currentBillboard.name}" berhasil dihapus.`);
       setIsDeleteOpen(false);
     } catch (err: any) {
-      triggerAlert('error', `Gagal menghapus: ${err.message || 'Error tidak diketahui'}`);
+      triggerAlert('error', err.response?.data?.message || err.message || 'Gagal menghapus');
     }
   };
 
@@ -250,7 +301,7 @@ export const BillboardsPage: React.FC = () => {
             <ImageIcon className="w-7 h-7 text-amber-500" />
             Manage Billboards
           </h1>
-          <p className="text-zinc-400 text-sm mt-1">Kelola data papan reklame, status sewa, spesifikasi, dan harga sewa iklan</p>
+          <p className="text-zinc-400 text-sm mt-1">Kelola data papan reklame & Spesifikasi</p>
         </div>
 
         <button
@@ -298,21 +349,45 @@ export const BillboardsPage: React.FC = () => {
           />
         </div>
 
-        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          {['ALL', 'AVAILABLE', 'RENTED', 'MAINTENANCE'].map((status) => (
-            <button
-              key={status}
-              id={`filter-status-${status.toLowerCase()}`}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap border ${
-                statusFilter === status
-                  ? 'bg-amber-500 border-amber-500 text-zinc-950 shadow-md shadow-amber-500/10'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              {status}
-            </button>
-          ))}
+        <div className="flex gap-3 w-full md:w-auto items-center">
+          <select
+            id="filter-type"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="min-w-[140px] px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-300 text-sm focus:outline-none focus:border-amber-500"
+          >
+            <option value="ALL">Semua Jenis</option>
+            {uniqueTypes.length > 0 ? (
+              uniqueTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))
+            ) : (
+              <>
+                <option value="Billboard">Billboard</option>
+                <option value="Baliho">Baliho</option>
+              </>
+            )}
+          </select>
+
+          <select
+            id="filter-lighting"
+            value={lightingFilter}
+            onChange={(e) => setLightingFilter(e.target.value)}
+            className="min-w-[140px] px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-300 text-sm focus:outline-none focus:border-amber-500"
+          >
+            <option value="ALL">Semua Pencahayaan</option>
+            {uniqueLightings.length > 0 ? (
+              uniqueLightings.map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))
+            ) : (
+              <>
+                <option value="Back Light">Back Light</option>
+                <option value="Front Light">Front Light</option>
+                <option value="Non Light">Non Light</option>
+              </>
+            )}
+          </select>
         </div>
       </div>
 
@@ -326,8 +401,6 @@ export const BillboardsPage: React.FC = () => {
                 <th className="p-4">Billboard Info</th>
                 <th className="p-4">Lokasi & Alamat</th>
                 <th className="p-4">Dimensi & Tipe</th>
-                <th className="p-4">Harga / Bulan</th>
-                <th className="p-4">Status</th>
                 <th className="p-4 pr-6 text-right">Actions</th>
               </tr>
             </thead>
@@ -366,20 +439,6 @@ export const BillboardsPage: React.FC = () => {
                     <td className="p-4">
                       <div className="font-semibold text-zinc-300">{b.size || '-'}</div>
                       <div className="text-xs text-zinc-500 mt-0.5">{b.orientation || 'Vertical'}</div>
-                    </td>
-                    <td className="p-4 font-mono font-medium text-amber-500">
-                      Rp {(b.price || 0).toLocaleString('id-ID')}
-                    </td>
-                    <td className="p-4">
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                        b.status === 'AVAILABLE'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : b.status === 'RENTED'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      }`}>
-                        {b.status}
-                      </span>
                     </td>
                     <td className="p-4 pr-6 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -428,8 +487,11 @@ export const BillboardsPage: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Name */}
                 <div className="col-span-1 md:col-span-2">
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Nama Billboard</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Nama Billboard
+                  </label>
                   <input
                     type="text"
                     name="name"
@@ -441,8 +503,46 @@ export const BillboardsPage: React.FC = () => {
                   />
                 </div>
 
+                {/* Code */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Provinsi</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Kode Unik
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-500">
+                      <LinkIcon className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      name="code"
+                      value={formData.code || ''}
+                      onChange={handleInputChange}
+                      placeholder="ABC-123"
+                      className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Slug */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Slug URL
+                  </label>
+                  <input
+                    type="text"
+                    name="slug"
+                    value={formData.slug || ''}
+                    onChange={handleInputChange}
+                    placeholder="billboard-sudirman-km-5"
+                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                  />
+                </div>
+
+                {/* Province */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Provinsi
+                  </label>
                   <input
                     type="text"
                     name="province"
@@ -454,8 +554,11 @@ export const BillboardsPage: React.FC = () => {
                   />
                 </div>
 
+                {/* City */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Kota</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Kota
+                  </label>
                   <input
                     type="text"
                     name="city"
@@ -467,71 +570,111 @@ export const BillboardsPage: React.FC = () => {
                   />
                 </div>
 
+                {/* District */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Kecamatan
+                  </label>
+                  <input
+                    type="text"
+                    name="district"
+                    value={formData.district || ''}
+                    onChange={handleInputChange}
+                    placeholder="Contoh: Kebayoran Baru"
+                    required
+                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                  />
+                </div>
+
+                {/* Address */}
                 <div className="col-span-1 md:col-span-2">
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Alamat Detail</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Alamat Detail
+                  </label>
                   <textarea
                     name="address"
                     value={formData.address || ''}
                     onChange={handleInputChange}
                     placeholder="Alamat lengkap lokasi pemasangan reklame"
                     rows={2}
+                    required
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
                 </div>
 
+                {/* Latitude */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Latitude</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Latitude
+                  </label>
                   <input
                     type="number"
                     step="any"
                     name="latitude"
                     value={formData.latitude || 0}
                     onChange={handleInputChange}
-                    placeholder="Contoh: -0.305"
+                    placeholder="Contoh: -6.2088"
+                    required
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
                 </div>
 
+                {/* Longitude */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Longitude</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Longitude
+                  </label>
                   <input
                     type="number"
                     step="any"
                     name="longitude"
                     value={formData.longitude || 0}
                     onChange={handleInputChange}
-                    placeholder="Contoh: 100.369"
+                    placeholder="Contoh: 106.8456"
+                    required
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
                 </div>
 
+                {/* Size */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Ukuran (Dimensi)</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Ukuran (Dimensi)
+                  </label>
                   <input
                     type="text"
                     name="size"
                     value={formData.size || ''}
                     onChange={handleInputChange}
                     placeholder="Contoh: 4m x 8m"
+                    required
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
                 </div>
 
+                {/* Type */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Jenis Media</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Jenis Media
+                  </label>
                   <select
                     name="type"
                     value={formData.type || ''}
                     onChange={handleInputChange}
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:border-amber-500 text-sm"
                   >
-                    <option value="Baliho">Baliho</option>
                     <option value="Billboard">Billboard</option>
+                    <option value="Baliho">Baliho</option>
+                    <option value="Neon Box">Neon Box</option>
+                    <option value="Spanduk">Spanduk</option>
                   </select>
                 </div>
 
+                {/* Orientation */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Sisi</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Orientasi
+                  </label>
                   <select
                     name="orientation"
                     value={formData.orientation || ''}
@@ -540,11 +683,16 @@ export const BillboardsPage: React.FC = () => {
                   >
                     <option value="Satu Sisi">Satu Sisi</option>
                     <option value="Dua Sisi">Dua Sisi</option>
+                    <option value="Tiga Sisi">Tiga Sisi</option>
+                    <option value="Empat Sisi">Empat Sisi</option>
                   </select>
                 </div>
 
+                {/* Lighting */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Pencahayaan</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Pencahayaan
+                  </label>
                   <select
                     name="lighting"
                     value={formData.lighting || ''}
@@ -554,57 +702,67 @@ export const BillboardsPage: React.FC = () => {
                     <option value="Back Light">Back Light</option>
                     <option value="Front Light">Front Light</option>
                     <option value="Non Light">Non Light</option>
+                    <option value="LED">LED</option>
                   </select>
                 </div>
 
+                {/* Traffic */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Volume Lalu Lintas
+                  </label>
+                  <input
+                    type="text"
+                    name="traffic"
+                    value={formData.traffic || ''}
+                    onChange={handleInputChange}
+                    placeholder="Contoh: 50.000 kendaraan/hari"
+                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
+                  />
+                </div>
+
+                {/* Thumbnail */}
                 <div className="col-span-1 md:col-span-2">
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Thumbnail (URL Gambar)</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Thumbnail URL (harus dimulai dengan http:// atau https://)
+                  </label>
                   <input
                     type="text"
                     name="thumbnail"
                     value={formData.thumbnail || ''}
                     onChange={handleInputChange}
-                    placeholder="URL gambar thumbnail"
+                    placeholder="https://example.com/image.jpg"
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
                 </div>
 
+                {/* Gallery */}
                 <div className="col-span-1 md:col-span-2">
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Gallery (URL Gambar, Pisahkan dengan baris baru)</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Gallery URLs (satu per baris, harus dimulai dengan http:// atau https://)
+                  </label>
                   <textarea
-                    name="gallery"
                     value={(formData.gallery || []).join('\n')}
-                    onChange={(e) => setFormData(prev => ({ ...prev, gallery: e.target.value.split('\n').filter(s => s.trim() !== '') }))}
-                    placeholder="URL gambar gallery 1&#10;URL gambar gallery 2"
+                    onChange={handleGalleryChange}
+                    placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
                     rows={3}
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Harga Sewa Bulanan (IDR)</label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price || 0}
+                {/* Description */}
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Deskripsi
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description || ''}
                     onChange={handleInputChange}
-                    placeholder="Contoh: 15000000"
+                    placeholder="Deskripsi lengkap lokasi billboard"
+                    rows={3}
                     className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 text-sm"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Status Ketersediaan</label>
-                  <select
-                    name="status"
-                    value={formData.status || 'AVAILABLE'}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:border-amber-500 text-sm"
-                  >
-                    <option value="AVAILABLE">AVAILABLE (Tersedia)</option>
-                    <option value="RENTED">RENTED (Disewa)</option>
-                    <option value="MAINTENANCE">MAINTENANCE (Perawatan)</option>
-                  </select>
                 </div>
               </div>
 

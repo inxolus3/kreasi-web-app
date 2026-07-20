@@ -100,6 +100,10 @@ async function testTcp(host: string, port: number): Promise<{ connected: boolean
 }
 
 router.get('/', async (_req, res) => {
+  // Disable diagnostics in production to avoid information disclosure
+  if (env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
   logger.info('Running database diagnostic checks...');
   
   const rawDbUrl = env.DATABASE_URL || '';

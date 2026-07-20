@@ -16,26 +16,12 @@ interface BillboardMarkerProps {
 }
 
 // Custom Leaflet DivIcon creator to avoid broken default marker image URLs in bundlers
-const createCustomIcon = (status: Billboard['status'], isSelected: boolean) => {
-  let colorClass = 'bg-emerald-500';
-  let pulseColorClass = 'bg-emerald-400';
-  let borderClass = 'border-emerald-200 dark:border-emerald-950';
-  
-  if (status === 'BOOKED') {
-    colorClass = 'bg-rose-500';
-    pulseColorClass = 'bg-rose-400';
-    borderClass = 'border-rose-200 dark:border-rose-950';
-  } else if (status === 'MAINTENANCE') {
-    colorClass = 'bg-amber-500';
-    pulseColorClass = 'bg-amber-400';
-    borderClass = 'border-amber-200 dark:border-amber-950';
-  } else if (status === 'INACTIVE') {
-    colorClass = 'bg-slate-400';
-    pulseColorClass = 'bg-slate-300';
-    borderClass = 'border-slate-200 dark:border-slate-800';
-  }
+const createCustomIcon = (isSelected: boolean) => {
+  const colorClass = 'bg-brand';
+  const pulseColorClass = 'bg-brand/80';
+  const borderClass = 'border-brand/20 dark:border-brand-secondary/40';
 
-  // Selection states: highlight with brand color or secondary brand color ring
+  // Selection states: highlight with brand color ring
   const ringStyles = isSelected 
     ? 'ring-[3px] ring-brand dark:ring-brand-secondary scale-115 shadow-xl z-[999]' 
     : 'shadow-md';
@@ -45,7 +31,7 @@ const createCustomIcon = (status: Billboard['status'], isSelected: boolean) => {
     html: `
       <div class="relative flex items-center justify-center w-8 h-8 rounded-full ${borderClass} border-2 bg-white dark:bg-[#070B19] transition-all duration-300 ${ringStyles}">
         <span class="absolute w-2.5 h-2.5 rounded-full ${colorClass}"></span>
-        ${status === 'AVAILABLE' || isSelected ? `<span class="absolute w-2.5 h-2.5 rounded-full ${pulseColorClass} animate-ping opacity-75"></span>` : ''}
+        ${isSelected ? `<span class="absolute w-2.5 h-2.5 rounded-full ${pulseColorClass} animate-ping opacity-75"></span>` : ''}
       </div>
     `,
     iconSize: [32, 32],
@@ -76,7 +62,7 @@ export default function BillboardMarker({ billboard, isSelected, onSelect }: Bil
     <Marker
       ref={markerRef}
       position={[billboard.latitude, billboard.longitude]}
-      icon={createCustomIcon(billboard.status, isSelected)}
+      icon={createCustomIcon(isSelected)}
       eventHandlers={{
         click: () => onSelect(billboard)
       }}
