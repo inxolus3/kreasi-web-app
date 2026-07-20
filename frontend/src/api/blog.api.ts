@@ -4,111 +4,55 @@
  */
 
 import { blogClient } from './client';
+import type {
+  BlogListResponse,
+  BlogPostResponse,
+  CreateBlogPayload,
+  GetPostsParams,
+  UpdateBlogPayload,
+} from './types/blog';
+import type { ApiMessageResponse } from './types/common';
+import { createPostSchema, getPostsQuerySchema, updatePostSchema } from './schemas/blog.schema';
 
-export interface BlogPost {
-  id: number;
-  title: string;
-  slug: string;
-  content: string;
-  thumbnail?: string | null;
-  gallery: string[];
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-  status: 'DRAFT' | 'PUBLISHED';
-  featured: boolean;
-  categoryId: number;
-  authorId: number;
-  createdAt: string;
-  category?: {
-    id: number;
-    name: string;
-    slug: string;
-  };
-  author?: {
-    id: number;
-    username: string;
-    role: string;
-  };
-}
-
-export interface BlogResponse {
-  status: string;
-  data: BlogPost[];
-  meta?: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
-export interface SingleBlogResponse {
-  status: string;
-  data: BlogPost;
-}
-
-export interface CreateBlogPayload {
-  title: string;
-  slug: string;
-  content: string;
-  status: 'DRAFT' | 'PUBLISHED';
-  featured: boolean;
-  categoryId: number;
-  authorId: number;
-  thumbnail?: string | null;
-  gallery?: string[];
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-}
-
-export interface UpdateBlogPayload {
-  title?: string;
-  slug?: string;
-  content?: string;
-  status?: 'DRAFT' | 'PUBLISHED';
-  featured?: boolean;
-  categoryId?: number;
-  thumbnail?: string | null;
-  gallery?: string[];
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-}
+export type { BlogPost, BlogAuthor, BlogCategory, CreateBlogPayload, UpdateBlogPayload } from './types/blog';
 
 export const blogApi = {
-  getPosts: async (params?: {
-    search?: string;
-    categoryId?: number;
-    tagId?: number;
-    status?: string;
-    featured?: boolean;
-    page?: number;
-    limit?: number;
-  }): Promise<BlogResponse> => {
-    const queryParams = { status: 'PUBLISHED', ...params };
-    const response = await blogClient.get('/posts', { params: queryParams });
+  getPosts: async (params?: GetPostsParams): Promise<BlogListResponse> => {
+    const queryParams = getPostsQuerySchema.parse({ status: 'PUBLISHED', ...params });
+    const response = await blogClient.get<BlogListResponse>('/posts', { params: queryParams });
     return response.data;
   },
 
-  getPostBySlug: async (slug: string): Promise<SingleBlogResponse> => {
-    const response = await blogClient.get(`/posts/slug/${slug}`);
+  getAllPosts: async (params?: GetPostsParams): Promise<BlogListResponse> => {
+    const queryParams = params ? getPostsQuerySchema.parse(params) : undefined;
+    const response = await blogClient.get<BlogListResponse>('/posts', { params: queryParams });
     return response.data;
   },
 
-  // ✅ FIX: Tambahin createPost
-  createPost: async (payload: CreateBlogPayload): Promise<SingleBlogResponse> => {
-    const response = await blogClient.post('/posts', payload);
+  getPostBySlug: async (slug: string): Promise<BlogPostResponse> => {
+    const response = await blogClient.get<BlogPostResponse>(`/posts/slug/${slug}`);
     return response.data;
   },
 
-  // ✅ FIX: Tambahin updatePost (PATCH)
-  updatePost: async (id: number, payload: UpdateBlogPayload): Promise<SingleBlogResponse> => {
-    const response = await blogClient.patch(`/posts/${id}`, payload);
+  getPostById: async (id: number): Promise<BlogPostResponse> => {
+    const response = await blogClient.get<BlogPostResponse>(`/posts/${id}`);
     return response.data;
   },
 
-  // ✅ FIX: Tambahin deletePost
-  deletePost: async (id: number): Promise<{ status: string; message: string }> => {
-    const response = await blogClient.delete(`/posts/${id}`);
+  createPost: async (payload: CreateBlogPayload): Promise<BlogPostResponse> => {
+    createPostSchema.parse(payload);
+    const response = await blogClient.post<BlogPostResponse>('/posts', payload);
+    return response.data;
+  },
+
+  updatePost: async (id: number, payload: UpdateBlogPayload): Promise<BlogPostResponse> => {
+    updatePostSchema.parse(payload);
+    const response = await blogClient.patch<BlogPostResponse>(`/posts/${id}`, payload);
+    return response.data;
+  },
+
+  deletePost: async (id: number): Promise<ApiMessageResponse> => {
+    const response = await blogClient.delete<ApiMessageResponse>(`/posts/${id}`);
     return response.data;
   },
 };

@@ -5,16 +5,10 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authClient } from '../api/client';
+import { authApi } from '../api/auth.api';
+import type { AuthUser } from '../api/types/auth';
 
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+type User = AuthUser;
 
 interface AuthContextType {
   user: User | null;
@@ -50,9 +44,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       clearError();
       
-      const response = await authClient.get('/me');
-      const userData = response.data?.data || response.data;
-      
+      const response = await authApi.getCurrentUser();
+      const userData = response.data;
+
       if (userData && typeof userData === 'object') {
         setUser(userData);
       } else {
@@ -81,15 +75,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       clearError();
       
-      const response = await authClient.post('/login', { email, password });
-      const responseData = response.data?.data || response.data;
-      
-      // ✅ Simpan accessToken ke localStorage
+      const response = await authApi.login({ email, password });
+      const responseData = response.data;
+
       if (responseData?.accessToken) {
         localStorage.setItem('accessToken', String(responseData.accessToken));
       }
-      
-      setUser(responseData?.user || responseData);
+
+      const meResponse = await authApi.getCurrentUser();
+      setUser(meResponse.data);
       navigate('/admin/dashboard', { replace: true });
     } catch (err: any) {
       const message = getErrorMessage(err);
@@ -107,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = useCallback(async () => {
     try {
-      await authClient.post('/logout');
+      await authApi.logout();
     } catch (err: any) {
       const message = getErrorMessage(err);
       if (import.meta.env.DEV) {

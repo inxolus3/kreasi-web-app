@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import { env } from './config/env';
 
@@ -30,7 +31,6 @@ import metricsRouter from './routes/metrics';
 import { errorHandler } from './middlewares/errorHandler';
 import { requestLogger } from './utils/logger';
 import { apiLimiter } from './middlewares/rateLimiter';
-import { verifyToken } from './utils/jwt.util';
 import { sanitizeResponseMiddleware } from './middlewares/sanitizeResponse';
 
 import authRouter from './modules/auth/auth.routes';
@@ -103,6 +103,9 @@ app.use(
 app.use(compression({ level: 6, threshold: 1024 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// cookie-parser is required for cookie-based authentication
+// (refreshToken HttpOnly cookie + accessToken cookie fallback in auth middleware).
+app.use(cookieParser());
 app.use(sanitizeResponseMiddleware);
 
 // Uploads route with auth

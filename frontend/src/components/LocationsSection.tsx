@@ -5,8 +5,14 @@
 
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Billboard } from '../types';
-import { billboardApi } from '../api/billboard.api';
+import { BillboardMarker } from '../types';
+import {
+  usePublicBillboards,
+  useBillboardDetail,
+  useBillboardCities,
+  useBillboardTypes,
+  useBillboardLightings,
+} from '../api/hooks/useBillboards';
 import SearchBox from './SearchBox';
 import FilterBar from './FilterBar';
 import LocationCard from './LocationCard';
@@ -33,12 +39,7 @@ export default function LocationsSection({ isDarkMode }: LocationsSectionProps) 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // TanStack Query to fetch all public billboards
-  const { data: billboardsData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['billboards'],
-    queryFn: () => billboardApi.getBillboards(),
-    staleTime: 5 * 60 * 1000,
-    placeholderData: (previousData) => previousData,
-  });
+  const { data: billboardsData, isLoading, isError, refetch } = usePublicBillboards();
 
   const { data: citiesData } = useQuery({
     queryKey: ['billboards', 'cities'],
