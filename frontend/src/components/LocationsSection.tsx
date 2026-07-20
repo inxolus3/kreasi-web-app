@@ -5,7 +5,8 @@
 
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BillboardMarker } from '../types';
+import { Billboard } from '../types';
+import { billboardApi } from '../api/billboard.api';
 import {
   usePublicBillboards,
   useBillboardDetail,

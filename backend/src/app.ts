@@ -9,6 +9,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import { env } from './config/env';
+import { verifyToken } from './utils/jwt.util';
 
 // Initialize Sentry before any middleware or route definitions
 if (env.SENTRY_DSN) {
