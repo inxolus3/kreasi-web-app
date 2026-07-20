@@ -9,7 +9,11 @@ export class PagesController {
   createPage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { title, slug, metaTitle, metaDescription, featuredImage } = req.body;
-      const authorId = (req.user as any)?.id || 1; // Fallback to user ID 1 if not authenticated during tests
+      const authorId = req.user?.userId;
+      if (!authorId) {
+        res.status(401).json({ status: 'fail', message: 'Unauthorized' });
+        return;
+      }
 
       const page = await this.pagesService.createPage(title, slug, authorId, {
         metaTitle,

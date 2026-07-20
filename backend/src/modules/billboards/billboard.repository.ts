@@ -1,5 +1,10 @@
 import prisma from '../../utils/prisma';
-import { Prisma, Billboard } from '@prisma/client';
+import { Prisma, Billboard, Image } from '@prisma/client';
+
+export type BillboardWithImages = Billboard & {
+  thumbnail?: Image | null;
+  gallery?: Image[];
+};
 
 export type BillboardListArgs = {
   skip?: number;
@@ -7,46 +12,70 @@ export type BillboardListArgs = {
   where?: Prisma.BillboardWhereInput;
   orderBy?: Prisma.BillboardOrderByWithRelationInput;
   select?: Prisma.BillboardSelect;
+  include?: Prisma.BillboardInclude;
 };
 
 export class BillboardRepository {
-  async create(data: Prisma.BillboardCreateInput): Promise<Billboard> {
-    return prisma.billboard.create({ data });
+  async create(data: Prisma.BillboardCreateInput): Promise<BillboardWithImages> {
+    return prisma.billboard.create({
+      data,
+      include: {
+        thumbnail: true,
+        gallery: true,
+      },
+    });
   }
 
-  async findMany(params: BillboardListArgs): Promise<Billboard[]> {
-    const { skip, take, where, orderBy, select } = params;
-    return prisma.billboard.findMany({
-      skip,
-      take,
-      where,
-      orderBy,
-      select,
-    });
+  async findMany(params: BillboardListArgs): Promise<BillboardWithImages[]> {
+    return prisma.billboard.findMany(params as any);
   }
 
   async count(where?: Prisma.BillboardWhereInput): Promise<number> {
     return prisma.billboard.count({ where });
   }
 
-  async findById(id: number): Promise<Billboard | null> {
-    return prisma.billboard.findUnique({ where: { id } });
+  async findById(id: number): Promise<BillboardWithImages | null> {
+    return prisma.billboard.findUnique({
+      where: { id },
+      include: {
+        thumbnail: true,
+        gallery: true,
+      },
+    });
   }
 
-  async findByIdOrThrow(id: number): Promise<Billboard> {
-    const billboard = await prisma.billboard.findUnique({ where: { id } });
+  async findByIdOrThrow(id: number): Promise<BillboardWithImages> {
+    const billboard = await prisma.billboard.findUnique({
+      where: { id },
+      include: {
+        thumbnail: true,
+        gallery: true,
+      },
+    });
     if (!billboard) {
       throw new Error('Billboard not found');
     }
     return billboard;
   }
 
-  async findBySlug(slug: string): Promise<Billboard | null> {
-    return prisma.billboard.findUnique({ where: { slug } });
+  async findBySlug(slug: string): Promise<BillboardWithImages | null> {
+    return prisma.billboard.findUnique({
+      where: { slug },
+      include: {
+        thumbnail: true,
+        gallery: true,
+      },
+    });
   }
 
-  async findBySlugOrThrow(slug: string): Promise<Billboard> {
-    const billboard = await prisma.billboard.findUnique({ where: { slug } });
+  async findBySlugOrThrow(slug: string): Promise<BillboardWithImages> {
+    const billboard = await prisma.billboard.findUnique({
+      where: { slug },
+      include: {
+        thumbnail: true,
+        gallery: true,
+      },
+    });
     if (!billboard) {
       throw new Error('Billboard not found');
     }
@@ -57,8 +86,15 @@ export class BillboardRepository {
     return prisma.billboard.findUnique({ where: { code } });
   }
 
-  async update(id: number, data: Prisma.BillboardUpdateInput): Promise<Billboard> {
-    return prisma.billboard.update({ where: { id }, data });
+  async update(id: number, data: Prisma.BillboardUpdateInput): Promise<BillboardWithImages> {
+    return prisma.billboard.update({
+      where: { id },
+      data,
+      include: {
+        thumbnail: true,
+        gallery: true,
+      },
+    });
   }
 
   async delete(id: number): Promise<Billboard> {

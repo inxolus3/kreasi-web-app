@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../utils/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.get('/sitemap.xml', async (req, res) => {
   const baseUrl = process.env.FRONTEND_URL || 'https://kreasi-cms.com';
@@ -13,13 +12,13 @@ router.get('/sitemap.xml', async (req, res) => {
   });
   
   const billboards = await prisma.billboard.findMany({
-    where: { status: 'AVAILABLE' },
+    where: { status: 'AVAILABLE' } as any,
     select: { slug: true, updatedAt: true },
   });
   
   const urls = [
-    ...pages.map(p => ({ loc: `${baseUrl}/${p.slug}`, lastmod: p.updatedAt })),
-    ...billboards.map(b => ({ loc: `${baseUrl}/billboard/${b.slug}`, lastmod: b.updatedAt })),
+    ...pages.map((p) => ({ loc: `${baseUrl}/${p.slug}`, lastmod: p.updatedAt })),
+    ...billboards.map((b) => ({ loc: `${baseUrl}/billboard/${b.slug}`, lastmod: b.updatedAt })),
     { loc: `${baseUrl}/`, lastmod: new Date() },
     { loc: `${baseUrl}/blog`, lastmod: new Date() },
     { loc: `${baseUrl}/kontak`, lastmod: new Date() },

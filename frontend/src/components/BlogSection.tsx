@@ -186,7 +186,7 @@ export default function BlogSection() {
 
             </article>
           ) : (
-            <EmptyState message="Artikel tidak ditemukan." />
+            <EmptyState description="Artikel tidak ditemukan." />
           )}
 
         </div>
@@ -278,13 +278,13 @@ export default function BlogSection() {
           </div>
         ) : filteredPosts.length === 0 ? (
           <EmptyState 
-            message="Belum ada artikel yang dipublikasikan dalam kategori atau pencarian ini." 
+            description="Belum ada artikel yang dipublikasikan dalam kategori atau pencarian ini." 
             onAction={debouncedSearch || selectedCategory !== 'ALL' ? () => {
               setSearchVal('');
               setDebouncedSearch('');
               setSelectedCategory('ALL');
             } : undefined}
-            actionLabel="Reset Pencarian"
+            actionText="Reset Pencarian"
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="posts-display-grid">
